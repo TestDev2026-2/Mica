@@ -1,0 +1,1494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; font-src 'none'; img-src data: blob:; worker-src blob:; connect-src 'none'; base-uri 'none'; form-action 'none'"><meta name="referrer" content="no-referrer">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#F8F6FA">
+<meta name="color-scheme" content="light">
+
+<title>Mica – a tiny chatbot that lives on your device</title>
+<meta name="description" content="Train a tiny language model on your own text, chat with it and save it as a .mica file. Everything runs in your browser, nothing is uploaded.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%234F46E5'/%3E%3Cstop offset='.55' stop-color='%23E2487A'/%3E%3Cstop offset='1' stop-color='%23F59A3C'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='16' fill='url(%23g)'/%3E%3Ctext x='32' y='44' font-family='Arial' font-weight='700' font-size='34' text-anchor='middle' fill='white'%3EM%3C/text%3E%3C/svg%3E">
+<style>
+:root{
+  color-scheme:light;
+  --bg:#F2F2F7; --surface:#FFFFFF; --label:#1C1C1E; --label2:#636366; --label3:#8E8E93;
+  --sep:rgba(60,60,67,.13); --fill:rgba(118,118,128,.12); --fill2:rgba(118,118,128,.07);
+  --accent:#0A66F5; --accent-ink:#FFFFFF; --accent-soft:rgba(10,102,245,.10);
+  --ok:#1E9E4A; --danger:#D1131F;
+  --r-card:22px; --r-ctl:14px; --r-tile:16px;
+  --shadow:0 1px 2px rgba(16,24,40,.04),0 6px 20px rgba(16,24,40,.05);
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--label);font:16px/1.4 var(--font);-webkit-font-smoothing:antialiased;padding-bottom:calc(92px + env(safe-area-inset-bottom))}
+button,input,select{font:inherit;color:inherit}
+[hidden]{display:none!important}
+.ic{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.wrap{max-width:560px;margin:0 auto;padding:0 18px}
+
+/* Header: wide margins, title only — the "viewing area" */
+.top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;padding:calc(30px + env(safe-area-inset-top)) 0 18px}
+h1{margin:0;font-size:34px;line-height:1.1;font-weight:700;letter-spacing:-.024em}
+.sub{margin:6px 0 0;color:var(--label2);font-size:16px}
+.icon-btn{width:44px;height:44px;border-radius:50%;border:0;background:var(--surface);box-shadow:var(--shadow);display:grid;place-items:center;color:var(--accent);cursor:pointer;flex:none}
+.icon-btn:active{transform:scale(.94)}
+
+.screen{display:none}
+.screen.on{display:block}
+
+/* Surfaces */
+.card{background:var(--surface);border-radius:var(--r-card);box-shadow:var(--shadow);padding:18px;margin-bottom:16px}
+.card.flush{padding:0;overflow:hidden}
+h2{margin:0;font-size:20px;line-height:1.25;font-weight:650;letter-spacing:-.012em}
+.lead{margin:6px 0 0;color:var(--label2);font-size:15px}
+.foot{margin:10px 2px 0;color:var(--label2);font-size:13px;line-height:1.4}
+.foot.center{text-align:center}
+.eyebrow{margin:0 0 10px;font-size:15px;font-weight:600}
+
+/* Buttons */
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:54px;border:0;border-radius:var(--r-ctl);background:var(--accent-soft);color:var(--accent);font-size:17px;font-weight:600;letter-spacing:-.01em;cursor:pointer;padding:0 20px}
+.btn+.btn{margin-top:10px}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn.danger{background:rgba(209,19,31,.09);color:var(--danger)}
+.btn.plain{background:transparent;color:var(--accent)}
+.btn:active:not(:disabled){transform:scale(.985);filter:brightness(.96)}
+.btn:disabled{background:var(--fill);color:var(--label3);cursor:default}
+.link{border:0;background:none;color:var(--accent);font-size:17px;font-weight:600;min-height:44px;padding:0 4px;cursor:pointer}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+/* Segmented control */
+.seg{display:flex;background:var(--fill);border-radius:12px;padding:2px;gap:2px}
+.seg label{flex:1;position:relative;min-width:0}
+.seg input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer}
+.seg span{display:flex;align-items:center;justify-content:center;min-height:42px;border-radius:10px;font-size:15px;font-weight:500;padding:0 4px;text-align:center;white-space:nowrap}
+.seg input:checked+span{background:#fff;font-weight:650;box-shadow:0 1px 3px rgba(0,0,0,.14),0 0 1px rgba(0,0,0,.08)}
+.seg input:focus-visible+span{outline:3px solid var(--accent);outline-offset:1px}
+
+/* Grouped list rows (settings) */
+.list{background:var(--surface);border-radius:var(--r-card);overflow:hidden;box-shadow:var(--shadow);margin-bottom:8px}
+.row{position:relative;display:flex;align-items:center;gap:12px;min-height:54px;padding:8px 16px;width:100%;text-align:left;border:0;background:none;cursor:pointer}
+.list>.row+.row::before,.list>.row+.pad+.row::before{content:"";position:absolute;top:0;left:16px;right:0;height:1px;background:var(--sep)}
+.row .t{flex:1;min-width:0}
+.row .t b{display:block;font-weight:500;font-size:16px}
+.row .t small{display:block;color:var(--label2);font-size:13px;line-height:1.3;margin-top:1px}
+.row .v{color:var(--label2);font-size:16px;font-variant-numeric:tabular-nums}
+.row .ic{color:var(--accent)}
+
+/* custom dropdown (replaces native select) */
+.dd-native{display:none!important}
+.dd-btn{display:inline-flex;align-items:center;justify-content:flex-end;gap:6px;min-height:44px;max-width:62%;padding:0 0 0 8px;border:0;background:transparent;color:var(--label2);font-size:16px;cursor:pointer;border-radius:10px;-webkit-tap-highlight-color:transparent}
+.dd-btn .dd-val{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dd-btn svg{width:10px;height:14px;flex:none;stroke:var(--label3);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;transition:transform .18s}
+.dd-btn[aria-expanded=true]{color:var(--accent)}
+.dd-btn[aria-expanded=true] svg{stroke:var(--accent)}
+.dd-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.dd-catch{position:fixed;inset:0;z-index:79;background:transparent}
+.dd-menu{position:fixed;z-index:80;min-width:190px;max-width:min(86vw,320px);max-height:min(56vh,420px);overflow:auto;overscroll-behavior:contain;padding:6px;border-radius:16px;background:rgba(255,255,255,.94);-webkit-backdrop-filter:saturate(180%) blur(24px);backdrop-filter:saturate(180%) blur(24px);box-shadow:0 12px 40px rgba(0,0,0,.20),0 2px 8px rgba(0,0,0,.10),0 0 0 .5px rgba(0,0,0,.08);opacity:0;transform:scale(.96);transition:opacity .12s ease,transform .14s ease}
+.dd-menu.on{opacity:1;transform:none}
+.dd-opt{display:flex;align-items:center;gap:8px;min-height:44px;padding:0 12px 0 8px;border-radius:11px;font-size:16px;color:var(--label);cursor:pointer;outline:none;-webkit-tap-highlight-color:transparent}
+.dd-opt .dd-ck{width:20px;flex:none;display:flex;justify-content:center}
+.dd-opt .dd-ck svg{width:15px;height:15px;stroke:var(--accent);fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;opacity:0}
+.dd-opt[aria-selected=true]{font-weight:600}
+.dd-opt[aria-selected=true] .dd-ck svg{opacity:1}
+.dd-opt:hover,.dd-opt:focus-visible,.dd-opt.hl{background:var(--fill)}
+.dd-opt:active{background:rgba(118,118,128,.2)}
+
+.row select,.row input[type=number],.row input[type=text]{border:0;background:transparent;text-align:right;color:var(--label2);font-size:16px;max-width:55%;min-height:44px;padding:0;-webkit-appearance:none;appearance:none}
+.row select{padding-right:16px;background:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='14' viewBox='0 0 10 14' fill='none' stroke='%238E8E93' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><path d='M2 5l3-3 3 3M2 9l3 3 3-3'/></svg>") no-repeat right center}
+.pad{padding:8px 16px 14px}
+.pad.slider{padding:2px 16px 14px}
+.group-title{margin:22px 18px 8px;font-size:13px;font-weight:600;color:var(--label2)}
+.group-foot{margin:0 18px 14px;font-size:13px;color:var(--label2)}
+
+/* Switch */
+.switch{position:relative;width:51px;height:31px;flex:none}
+.switch input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer}
+.switch i{position:absolute;inset:0;border-radius:99px;background:rgba(120,120,128,.28);transition:background .2s;pointer-events:none}
+.switch i::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.25);transition:transform .2s}
+.switch input:checked+i{background:var(--ok)}
+.switch input:checked+i::after{transform:translateX(20px)}
+.switch input:focus-visible+i{outline:3px solid var(--accent);outline-offset:2px}
+
+/* Range */
+input[type=range]{width:100%;height:32px;margin:0;background:transparent;-webkit-appearance:none;appearance:none}
+input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:var(--fill)}
+input[type=range]::-moz-range-track{height:4px;border-radius:2px;background:var(--fill)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:28px;height:28px;margin-top:-12px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.28),0 0 0 .5px rgba(0,0,0,.08)}
+input[type=range]::-moz-range-thumb{width:28px;height:28px;border:0;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.28)}
+.slider-labels{display:flex;justify-content:space-between;color:var(--label2);font-size:13px}
+
+/* Empty states */
+.empty{text-align:center;padding:30px 22px 22px}
+.empty .badge{width:72px;height:72px;margin:0 auto 16px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center}
+.empty .badge .ic{width:34px;height:34px}
+.empty p{margin:8px auto 20px;max-width:34ch;color:var(--label2);font-size:15px}
+
+/* Photo grid */
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.tile{position:relative;aspect-ratio:1;border-radius:var(--r-tile);overflow:hidden;background:var(--fill2)}
+.tile canvas{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated;transform-origin:center}
+.tile .more{position:absolute;inset:0;display:grid;place-items:center;background:rgba(28,28,30,.55);color:#fff;font-weight:650;font-size:17px}
+.tile.ph{display:grid;place-items:center;color:var(--label3)}
+.tile.ph .ic{width:28px;height:28px}
+.head-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:4px 10px 4px 8px;border-radius:99px;font-size:13px;font-weight:600;background:rgba(30,158,74,.12);color:var(--ok)}
+.pill .ic{width:14px;height:14px;stroke-width:2.6}
+.pill.busy{background:var(--accent-soft);color:var(--accent)}
+.bar{height:6px;border-radius:3px;background:var(--fill);overflow:hidden;margin:12px 0 0}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:3px;transition:width .2s}
+
+/* Train */
+.ring-row{display:flex;align-items:center;gap:16px;margin-bottom:18px}
+.ring{position:relative;width:76px;height:76px;flex:none}
+.ring svg{width:76px;height:76px;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:8;stroke-linecap:round}
+.ring .trk{stroke:var(--fill)}
+.ring .val{stroke:var(--accent);transition:stroke-dashoffset .5s ease,stroke .3s}
+.ring.done .val{stroke:var(--ok)}
+.ring b{position:absolute;inset:0;display:grid;place-items:center;font-size:18px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.ring-row h2{font-size:21px}
+
+/* Create */
+.result{padding:14px}
+.rgrid{display:grid;gap:10px}
+.rgrid[data-n="1"]{grid-template-columns:1fr}
+.rgrid[data-n="4"]{grid-template-columns:repeat(2,1fr)}
+.rgrid[data-n="8"]{grid-template-columns:repeat(4,1fr)}
+.rgrid .tile{box-shadow:inset 0 0 0 1px rgba(0,0,0,.04)}
+.result-bar{display:flex;align-items:center;gap:12px;margin-top:14px;padding:0 4px}
+.result-bar .lab{font-size:15px;font-weight:500;flex:none}
+.result-bar input[type=range]{flex:1}
+.result-bar .sv{width:44px;text-align:right;color:var(--label2);font-variant-numeric:tabular-nums;font-size:15px}
+.save-fab{position:absolute;top:24px;right:24px;width:44px;height:44px;border-radius:50%;border:0;background:rgba(255,255,255,.92);box-shadow:0 2px 10px rgba(0,0,0,.18);display:grid;place-items:center;color:var(--accent);cursor:pointer;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.save-fab:disabled{display:none}
+.result{position:relative}
+.field{width:100%;min-height:50px;border:0;border-radius:var(--r-ctl);background:var(--fill2);padding:0 16px;font-size:17px}
+.field::placeholder{color:var(--label3)}
+.stack>*+*{margin-top:16px}
+
+/* Tab bar */
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;justify-content:center;background:rgba(249,249,251,.86);-webkit-backdrop-filter:saturate(180%) blur(22px);backdrop-filter:saturate(180%) blur(22px);border-top:1px solid var(--sep);padding-bottom:env(safe-area-inset-bottom)}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.tabbar{background:#F9F9FB}}
+.tabbar .in{display:flex;width:100%;max-width:560px}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:56px;padding:7px 0 6px;border:0;background:none;color:var(--label3);font-size:11px;font-weight:600;cursor:pointer}
+.tab .ic{width:26px;height:26px}
+.tab[aria-selected=true]{color:var(--accent)}
+
+/* Toast */
+.toast{position:fixed;left:50%;bottom:calc(76px + env(safe-area-inset-bottom));transform:translate(-50%,12px);max-width:min(92vw,520px);padding:12px 18px;border-radius:99px;background:rgba(28,28,30,.94);color:#fff;font-size:15px;font-weight:500;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:40;text-align:center}
+.toast.on{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+.toast.err{background:#B3141F}
+
+/* Sheets */
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.34);opacity:0;pointer-events:none;transition:opacity .22s;z-index:50}
+.scrim.on{opacity:1;pointer-events:auto}
+.nrow{display:flex;align-items:center;gap:12px;padding:8px 14px;min-height:62px}
+.nrow .tile{width:46px;flex:none;border-radius:10px}
+.nrow input{flex:1;min-width:0;min-height:44px;border:0;border-radius:12px;background:var(--fill2);padding:0 12px;font-size:16px}
+.nrow+.nrow{border-top:.5px solid var(--sep,rgba(60,60,67,.18))}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:60;margin:0 auto;max-width:600px;background:var(--bg);border-radius:26px 26px 0 0;transform:translateY(102%);visibility:hidden;transition:transform .3s cubic-bezier(.2,.8,.2,1),visibility 0s .3s;padding-bottom:env(safe-area-inset-bottom)}
+.sheet.open{transform:none;visibility:visible;transition:transform .3s cubic-bezier(.2,.8,.2,1),visibility 0s}
+.grab{width:38px;height:5px;border-radius:3px;background:rgba(60,60,67,.25);margin:8px auto 4px}
+.sheet.full{height:min(90vh,820px);display:flex;flex-direction:column}
+.sheet-head{display:flex;align-items:center;justify-content:space-between;padding:4px 18px 6px}
+.sheet-head h2{font-size:22px}
+.sheet-body{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:0 16px 30px;overscroll-behavior:contain}
+.sheet.action{background:var(--surface);padding:6px 20px calc(18px + env(safe-area-inset-bottom))}
+.sheet.action h2{text-align:center;margin-top:12px}
+.sheet.action p{text-align:center;margin:8px 0 20px;color:var(--label2);font-size:15px}
+canvas#spark{width:100%;height:64px;display:block}
+.stat3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:14px 16px 4px;text-align:center}
+.stat3 b{display:block;font-size:20px;font-weight:650;font-variant-numeric:tabular-nums}
+.stat3 span{font-size:12px;color:var(--label2)}
+
+
+@media (min-width:600px){.top{padding-top:44px}}
+
+/* ===== v4 gradient skin (only transform/opacity are animated) ===== */
+:root{--bg:#F8F6FA;--accent:#C23B72;--accent-soft:rgba(194,59,114,.10);--g1:#A3318A;--g2:#E8643C;--g3:#F5B04A;--g4:#4F6BE0;
+ --grad:linear-gradient(120deg,#A3318A 0%,#D2497A 55%,#EE7A3C 100%)}
+.brand{margin:0 0 4px;font-size:15px;font-weight:700;letter-spacing:-.01em;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;width:max-content}
+.btn.primary{background:var(--grad);box-shadow:0 8px 18px rgba(210,73,122,.28)}
+.btn.primary:disabled{background:var(--fill);color:var(--label3);box-shadow:none}
+.bar i{background:var(--grad)}
+.pill.busy{background:rgba(194,59,114,.10);color:var(--accent)}
+.switch input:checked+i{background:#F5921E}
+.field{transition:box-shadow .25s,background .25s}
+.field:focus{outline:none;background:#fff;box-shadow:0 0 0 1.5px rgba(163,49,138,.45),0 0 22px rgba(163,49,138,.22)}
+.tabbar{-webkit-backdrop-filter:none;backdrop-filter:none;background:rgba(255,255,255,.97)}
+.save-fab{-webkit-backdrop-filter:none;backdrop-filter:none}
+/* Train: big gradient ring */
+.ring-row{flex-direction:column;gap:14px;text-align:center}
+.ring,.ring svg{width:172px;height:172px}
+.ring{isolation:isolate}
+.ring svg{position:relative}
+.ring b{font-size:42px;z-index:1}
+.ring .val,.ring.done .val{stroke:url(#rg)}
+.ring::before{content:"";position:absolute;inset:-16px;z-index:-1;border-radius:50%;background:radial-gradient(circle,rgba(238,122,60,.34),rgba(163,49,138,.16) 58%,transparent 72%);opacity:0;transform:scale(.9);transition:opacity .4s}
+.ring.live::before{opacity:1;animation:pulse 2.2s ease-in-out infinite;will-change:transform,opacity}
+/* shimmer on tiles while training / creating */
+.tile::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:0;background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.6) 50%,transparent 70%);transform:translateX(-100%)}
+.result.gen .tile::after,.is-training #prevTiles .tile::after{opacity:1;animation:sweep 1.5s linear infinite}
+.result.gen .rgrid{opacity:.7;transition:opacity .3s}
+/* Create: animated gradient container while generating */
+.result{overflow:hidden;isolation:isolate}
+#btnGen.busy:disabled{background:var(--grad);color:#fff;position:relative;overflow:hidden}
+#btnGen.busy::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.5) 50%,transparent 70%);transform:translateX(-100%);animation:sweep 1.2s linear infinite}
+@keyframes sweep{to{transform:translateX(100%)}}
+@keyframes pulse{0%,100%{transform:scale(.92);opacity:.7}50%{transform:scale(1.07);opacity:1}}
+.still *,.still *::before,.still *::after{animation-play-state:paused!important}
+
+
+/* ===== v4.1 glow + pixel noise ===== */
+:root{--noise-big:none;--noise-fine:none}
+.btn.primary{background:var(--noise-fine),var(--grad);box-shadow:0 8px 22px rgba(210,73,122,.36),0 0 18px rgba(238,122,60,.22)}
+#btnGen:not(:disabled){box-shadow:0 8px 24px rgba(210,73,122,.4),0 0 30px rgba(238,122,60,.35)}
+#btnGen.busy:disabled{background:var(--noise-fine),var(--grad);box-shadow:0 0 30px rgba(238,122,60,.5)}
+.bar i{background:var(--noise-fine),var(--grad)}
+.tab[aria-selected=true] .ic{filter:drop-shadow(0 0 6px rgba(194,59,114,.55))}
+.ring::before{background:var(--noise-fine),radial-gradient(circle,rgba(238,122,60,.38),rgba(163,49,138,.18) 58%,transparent 72%)}
+.ring.live .val{filter:drop-shadow(0 0 5px rgba(226,104,63,.6))}
+/* Create: glow + drifting coloured pixel noise while generating */
+.result::before{content:"";position:absolute;inset:0;z-index:-2;opacity:0;transition:opacity .45s;
+ background:radial-gradient(60% 70% at 12% 15%,rgba(163,49,138,.38),transparent 70%),radial-gradient(60% 70% at 88% 30%,rgba(238,122,60,.34),transparent 70%),radial-gradient(70% 60% at 50% 105%,rgba(79,107,224,.26),transparent 70%)}
+.result::after{content:"";position:absolute;inset:-128px;z-index:-1;opacity:0;transition:opacity .45s;background:var(--noise-big);background-size:128px 128px}
+.result.gen::before{opacity:1;animation:breathe 3s ease-in-out infinite;will-change:transform,opacity}
+.result.gen::after{opacity:1;animation:drift 3.5s linear infinite;will-change:transform}
+.result.gen{box-shadow:0 0 0 1.5px rgba(210,73,122,.35),0 10px 44px rgba(238,122,60,.34)}
+.result{transition:box-shadow .45s}
+@keyframes breathe{0%,100%{transform:scale(1);opacity:.7}50%{transform:scale(1.08);opacity:1}}
+@keyframes drift{to{transform:translate3d(128px,128px,0)}}
+
+/* ===== v4.2 liquid grain canvas (WebGL) + small motion ===== */
+.liquid{position:absolute;inset:0;width:100%;height:100%;z-index:-1;opacity:0;transition:opacity .6s ease;image-rendering:pixelated;pointer-events:none}
+.liquid.on{opacity:1}
+#trainMain .card:first-child{position:relative;overflow:hidden;isolation:isolate}
+.gl .result::before,.gl .result::after{display:none}
+.gl .result.gen .tile::after,.gl .is-training #prevTiles .tile::after{animation:none;opacity:0}
+.lq .foot,.lq .result-bar{background:rgba(255,255,255,.88);border-radius:12px;padding:6px 12px}
+.lq .result-bar{margin-top:12px}
+.lq .tile.ph{background:rgba(255,255,255,.2)}
+.pop{animation:pop .55s cubic-bezier(.2,.9,.25,1.15) both}
+@keyframes pop{from{opacity:0;transform:scale(.86) translateY(10px)}to{opacity:1;transform:none}}
+.screen.on{animation:scr .34s cubic-bezier(.2,.8,.2,1)}
+@keyframes scr{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+/* ===== v4.3: liquid only in the image areas, softer; liquid buttons ===== */
+.liquid{image-rendering:auto;inset:auto;left:0;top:0;margin:0}
+.liquid.ovl{z-index:3}
+.gl .result.gen{box-shadow:var(--shadow)}
+.gl .result.gen .rgrid{opacity:1}
+.btn.primary{position:relative;overflow:hidden;isolation:isolate;background:#2A1AA6;color:#fff;text-shadow:0 1px 8px rgba(20,8,90,.5);box-shadow:0 8px 22px rgba(240,80,70,.32)}
+.btn.primary::before{content:"";position:absolute;inset:-70% -35%;z-index:-1;will-change:transform;animation:bl 11s ease-in-out infinite alternate;
+ background:radial-gradient(46% 78% at 22% 42%,rgba(240,86,72,.95),transparent 72%),radial-gradient(40% 90% at 80% 58%,rgba(215,150,245,.6),transparent 72%),radial-gradient(52% 90% at 56% 6%,rgba(70,48,215,1),transparent 72%)}
+.btn.primary::after{content:"";position:absolute;inset:0;z-index:-1;background:var(--noise-fine);opacity:.9}
+.btn.primary:disabled{text-shadow:none}
+.btn.primary:disabled::before,.btn.primary:disabled::after{display:none}
+#btnGen.busy:disabled{background:#2A1AA6;color:#fff;box-shadow:0 8px 24px rgba(240,80,70,.4)}
+#btnGen.busy:disabled::before,#btnGen.busy:disabled::after{display:block}
+#btnGen.busy::after{animation:none;transform:none;background:var(--noise-fine)}
+@keyframes bl{0%{transform:translate3d(-10%,-4%,0) rotate(0) scale(1)}50%{transform:translate3d(6%,5%,0) rotate(8deg) scale(1.15)}100%{transform:translate3d(10%,-3%,0) rotate(-6deg) scale(1.05)}}
+
+/* ===== v4.4: wrappers, softer palette, livelier buttons ===== */
+.lqwrap{position:relative;overflow:hidden;isolation:isolate;border-radius:16px}
+.lw-train{border-radius:20px;padding:6px;margin:-6px}
+.btn.primary::before{background:radial-gradient(46% 78% at 22% 42%,rgba(240,86,72,.95),transparent 72%),radial-gradient(40% 90% at 80% 58%,rgba(215,150,245,.6),transparent 72%),radial-gradient(52% 90% at 56% 6%,rgba(70,48,215,1),transparent 72%),radial-gradient(42% 80% at 42% 100%,rgba(185,48,150,.85),transparent 72%)}
+#btnGen.busy::before{animation-duration:3.5s}
+
+/* ===== v4.5: buttons use the canvas liquid ===== */
+.btn.primary::before,.btn.primary::after,#btnGen.busy::before,#btnGen.busy::after,#btnGen.busy:disabled::before,#btnGen.busy:disabled::after{display:none!important}
+.lqbtn{position:absolute;inset:0;width:100%;height:100%;z-index:-1;pointer-events:none;image-rendering:auto}
+
+/* ===== v4.6: one soft gradient family ===== */
+:root{--grad:linear-gradient(120deg,#4F46E5 0%,#A3318A 36%,#E2487A 68%,#F59A3C 100%)}
+.btn.primary,#btnGen.busy:disabled{background:linear-gradient(120deg,#3B34C8,#A3318A 55%,#E8603C)}
+.bar i{background:var(--grad)}
+.ring::before{background:radial-gradient(circle,rgba(245,150,60,.34),rgba(200,50,120,.2) 42%,rgba(90,70,220,.12) 60%,transparent 72%)}
+.result::before,.result::after,.result.gen .tile::after,.is-training #prevTiles .tile::after{display:none!important}
+.lqov{position:absolute;inset:0;width:100%;height:100%;z-index:3;opacity:0;transition:opacity .6s ease;pointer-events:none}
+.lqtile{position:absolute;inset:0;width:100%;height:100%;opacity:0;transition:opacity .7s ease;pointer-events:none}
+.lqov.vis,.lqtile.vis{opacity:1}
+.tile .lqtile{image-rendering:auto}
+
+html,body,button,input,select,textarea{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Inter,Roboto,"Helvetica Neue",Arial,sans-serif}
+h1,h2{letter-spacing:-.03em;font-weight:800}
+body{padding-bottom:48px}
+.card{border:0;border-radius:24px;box-shadow:0 1px 2px rgba(30,20,80,.04),0 10px 30px rgba(30,20,80,.06)}
+.btn{border-radius:999px;transition:transform .18s cubic-bezier(.2,.8,.2,1),filter .18s}
+.btn:active{transform:scale(.97)}
+.screen.on{animation:none}
+.screen.on .card{animation:cardIn .2s ease-out both}
+@keyframes cardIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.tabbar{left:50%;right:auto;bottom:calc(14px + env(safe-area-inset-bottom));width:min(92%,380px);transform:translateX(-50%);padding:6px;border:0;border-radius:999px;background:rgba(255,255,255,.96);box-shadow:0 12px 32px rgba(40,20,90,.18),0 0 0 1px rgba(20,10,60,.05)}
+.tabbar .in{position:relative;max-width:none}
+.nav-ind{position:absolute;top:0;bottom:0;left:0;width:33.333%;border-radius:999px;background:var(--grad);box-shadow:0 6px 16px rgba(210,73,122,.35);transition:transform .45s cubic-bezier(.3,1.25,.4,1)}
+.in[data-i="1"] .nav-ind{transform:translateX(100%)}.in[data-i="2"] .nav-ind{transform:translateX(200%)}
+.tab{position:relative;z-index:1;flex-direction:row;gap:6px;min-height:46px;padding:0 6px;border-radius:999px;font-size:13px;font-weight:700;transition:color .25s}
+.tab .ic{width:21px;height:21px}
+.tab[aria-selected=true]{color:#fff}
+.tab[aria-selected=true] .ic{filter:none}
+.is-training .tab[data-tab=train]::after{content:"";position:absolute;top:9px;right:14px;width:7px;height:7px;border-radius:50%;background:#F59A3C;animation:pulse 1.6s ease-in-out infinite}
+.launch{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;padding:24px;overflow:auto;
+ background:radial-gradient(60% 40% at 12% 8%,rgba(79,70,229,.26),transparent 70%),radial-gradient(50% 40% at 92% 18%,rgba(226,72,122,.22),transparent 70%),radial-gradient(70% 45% at 50% 102%,rgba(245,154,60,.28),transparent 70%),#FBFAFD;transition:opacity .5s ease,visibility 0s}
+.launch.hide{opacity:0;visibility:hidden;pointer-events:none;transition:opacity .5s ease,visibility 0s .5s}
+.launch:not(.hide)~.tabbar{display:none}
+.l-in{width:100%;max-width:420px;animation:cardIn .7s cubic-bezier(.2,.8,.2,1) both}
+.l-in .l-h{font-size:36px;line-height:1.08;margin:6px 0 10px}
+.l-sub{color:var(--label2);margin:0 0 26px;font-size:16px}
+.l-card{position:relative;overflow:hidden;display:flex;align-items:center;gap:14px;width:100%;margin:0 0 12px;padding:16px 18px;border:0;border-radius:22px;background:#fff;text-align:left;cursor:pointer;color:inherit;box-shadow:0 1px 2px rgba(30,20,80,.05),0 12px 30px rgba(30,20,80,.09);transition:transform .18s cubic-bezier(.2,.8,.2,1)}
+.l-card:active:not(:disabled){transform:scale(.98)}
+.l-card:disabled{opacity:.55;cursor:default;box-shadow:0 1px 2px rgba(30,20,80,.05)}
+.l-ic{flex:none;width:44px;height:44px;border-radius:14px;display:grid;place-items:center;color:#fff;background:var(--grad)}
+.l-ic .ic{width:22px;height:22px}
+.l-t{display:flex;flex-direction:column;gap:2px}.l-t b{font-size:16px;font-weight:800}.l-t small{color:var(--label2);font-size:13px}
+.l-load{position:absolute;left:0;bottom:0;height:3px;width:100%;background:var(--grad);transform:translateX(-100%);opacity:0}
+.l-card.loading .l-load{opacity:1;animation:lsweep 1.2s ease-in-out infinite}
+@keyframes lsweep{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+.l-link{display:block;margin:14px auto 0;padding:10px;border:0;background:none;font-weight:700;font-size:15px;color:var(--accent);cursor:pointer}
+
+/* ===== v5.1: cards only where something floats or needs a frame ===== */
+.card.flat{background:none;box-shadow:none;border-radius:0;padding:0;margin-bottom:30px}
+.card.flat.empty{padding:6px 4px 0}
+.stack.flat>*+*{margin-top:22px}
+#tab-train .card{padding:22px}
+#tab-train .ring-row{margin-top:22px}
+.sheet{box-shadow:0 -12px 48px rgba(30,20,80,.22)}
+.sheet.action{left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));border-radius:28px;box-shadow:0 20px 60px rgba(30,20,80,.28)}
+
+/* ===== v6: simpler launch, gradient Advanced, recommended prompts ===== */
+.l-main{background:var(--grad);color:#fff;box-shadow:0 14px 34px rgba(210,73,122,.34)}
+.l-main .l-t small{color:rgba(255,255,255,.88)}
+.l-main .l-ic{background:rgba(255,255,255,.22)}
+.sheet .seg input:checked+span{background:var(--grad);color:#fff;box-shadow:0 4px 12px rgba(210,73,122,.3)}
+.sheet .switch input:checked+i{background:var(--grad)}
+.sheet input[type=range]{accent-color:#A3318A}
+.sheet .group-title{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:800;letter-spacing:.02em;width:max-content}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:0;border-radius:999px;padding:9px 14px;font:inherit;font-size:14px;font-weight:600;color:var(--accent);background:rgba(194,59,114,.09);cursor:pointer;transition:transform .18s cubic-bezier(.2,.8,.2,1)}
+.chip:active{transform:scale(.96)}
+
+/* ===== v8: every gradient is the liquid gradient ===== */
+.lq-host{isolation:isolate}
+.lqbtn{border-radius:inherit}
+.brand,.sheet .group-title{background-size:100% 100%}
+.ring .val,.ring.done .val{stroke:url(#rgp)}
+.ring::before{display:none}
+.lqglow{position:absolute;inset:-16px;width:calc(100% + 32px);height:calc(100% + 32px);z-index:-1;border-radius:50%;opacity:0;transform:scale(.9);transition:opacity .4s;pointer-events:none;-webkit-mask-image:radial-gradient(circle,transparent 46%,#000 57%,transparent 72%);mask-image:radial-gradient(circle,transparent 46%,#000 57%,transparent 72%)}
+.ring.live .lqglow{opacity:.6;animation:pulse 2.2s ease-in-out infinite}
+.lqbg{position:fixed;inset:0;width:100%;height:100%;z-index:0;opacity:.3;pointer-events:none}
+.launch{background:#FBFAFD}
+.l-in{position:relative;z-index:1}
+/* ===== v7: audit fixes ===== */
+:root{--label3:#76767B}
+body{padding-bottom:calc(112px + env(safe-area-inset-bottom))}
+.tab{color:var(--label2)}
+.tab[aria-selected=true]{color:#fff}
+.chip{min-height:44px;padding:0 16px}
+.btn.primary,#btnGen:not(:disabled),#btnGen.busy:disabled{box-shadow:0 6px 16px rgba(30,20,80,.16)}
+.result.gen{box-shadow:var(--shadow)}
+/* ===== training ring: clean arc, no pulse, no liquid fill ===== */
+.ring circle{stroke-width:5}
+.lqglow{display:none!important}
+.ring .val,.ring.done .val{stroke:url(#rg)}
+.ring.done .val{stroke:var(--ok)}
+
+/* ===== blur pass: all gradients except primary buttons, training tiles, create result ===== */
+.nav-ind,.l-main,.l-card:not(.l-main) .l-ic,.l-load,.bar i,.sheet .seg input+span,.sheet .switch input+i{overflow:hidden}
+.nav-ind,.l-main,.l-card:not(.l-main) .l-ic,.l-load,.bar i,.sheet .seg input:checked+span,.sheet .switch input:checked+i{background:none}
+.nav-ind>.lqbtn{filter:blur(5px)}
+.l-main>.lqbtn{filter:blur(7px)}
+.l-card:not(.l-main) .l-ic>.lqbtn{filter:blur(4px)}
+.l-load>.lqbtn{filter:blur(1px)}
+.bar i>.lqbtn{filter:blur(1px)}
+.sheet .seg input+span>.lqbtn{filter:blur(4px)}
+.sheet .switch input+i>.lqbtn{filter:blur(4px)}
+.lqbg{filter:blur(10px)}
+.brand,.sheet .group-title{filter:blur(.6px)}
+.ring .val,.ring.live .val{filter:blur(2px)}
+/* ===== subtle pass: same blur family, kept light on the main gradients ===== */
+.btn.primary>.lqbtn,.lqtile,.lqov{filter:blur(.8px)}
+/* ===== liquid glass capsule: tab bar ===== */
+.tabbar{
+  background:linear-gradient(180deg,rgba(255,255,255,.34) 0%,rgba(255,255,255,.12) 55%,rgba(255,255,255,.22) 100%);
+  -webkit-backdrop-filter:blur(16px) saturate(190%) brightness(1.06);
+  backdrop-filter:blur(16px) saturate(190%) brightness(1.06);
+  box-shadow:0 16px 36px rgba(30,20,80,.22),0 3px 8px rgba(30,20,80,.10),inset 0 1.5px 0 rgba(255,255,255,.85),inset 0 -1.5px 0 rgba(255,255,255,.30),inset 0 0 14px rgba(255,255,255,.25);
+  overflow:visible;
+}
+/* duplicated capsule layer: sheen where light hits the top-left, soft falloff bottom-right */
+.tabbar::before{
+  content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:3;
+  background:
+    radial-gradient(60% 140% at 22% 0%,rgba(255,255,255,.55),rgba(255,255,255,0) 60%),
+    linear-gradient(115deg,rgba(255,255,255,0) 40%,rgba(255,255,255,.22) 50%,rgba(255,255,255,0) 60%);
+}
+/* duplicated capsule edge: bright rim lit from top-left, darker on the far side */
+.tabbar::after{
+  content:"";position:absolute;inset:0;border-radius:inherit;padding:1.5px;pointer-events:none;z-index:4;
+  background:linear-gradient(135deg,rgba(255,255,255,.98) 0%,rgba(255,255,255,.25) 35%,rgba(255,255,255,.06) 62%,rgba(255,255,255,.7) 100%);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;
+  mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0);
+}
+/* ===== subtle blue gradient: untouched secondary buttons ===== */
+.btn:not(.primary):not(.plain):not(.danger){background:linear-gradient(120deg,rgba(10,102,245,.17),rgba(79,70,229,.12) 60%,rgba(10,102,245,.09))}
+/* ===== primary buttons: blue gradient with fine grain, separate from the liquid gradient elsewhere ===== */
+/* navbar container: subtle highlight, brighter glass so it holds up over darker areas */
+.tabbar{background:linear-gradient(180deg,rgba(255,255,255,.5) 0%,rgba(255,255,255,.2) 55%,rgba(255,255,255,.34) 100%);
+  -webkit-backdrop-filter:blur(16px) saturate(190%) brightness(1.14);backdrop-filter:blur(16px) saturate(190%) brightness(1.14);}
+.tabbar::before{background:
+    radial-gradient(70% 150% at 24% 0%,rgba(255,255,255,.9),rgba(255,255,255,0) 58%),
+    linear-gradient(115deg,rgba(255,255,255,0) 40%,rgba(255,255,255,.35) 50%,rgba(255,255,255,0) 60%);}
+/* selected capsule: highlight at the top-left */
+/* primary buttons: richer blue, glossy top, light spot top-left, grain */
+/* primary buttons: diagonal blue gradient with a satin sheen band, bevel and dark underside */
+/* primary buttons: the app's main gradient, drawn in CSS with a diagonal sheen, gloss and inner shade */
+/* ===== primary buttons: liquid gradient again (canvas shows; soft glow underneath) ===== */
+.btn.primary:not(:disabled):not(.busy){box-shadow:0 10px 22px rgba(210,73,122,.32);text-shadow:0 1px 2px rgba(60,10,50,.25)}
+.btn.primary:not(.busy)>.lqbtn{filter:blur(5px)}
+/* Photos (left): light from the top-right */
+/* Train (centre): light straight from above */
+/* Create (right): light from the top-left */
+.nav-ind{transition:transform .45s cubic-bezier(.3,1.25,.4,1),--sx .45s ease,--lx .45s ease}
+/* ===== 3D bevel + gloss: primary buttons ===== */
+.btn.primary:not(:disabled):not(.busy){
+  box-shadow:0 10px 22px rgba(210,73,122,.32),0 3px 0 rgba(90,20,70,.45),inset 0 1.5px 0 rgba(255,255,255,.75),inset 0 -2px 0 rgba(60,10,50,.35),inset 0 0 0 1px rgba(255,255,255,.18);
+}
+.btn.primary:not(:disabled):not(.busy)::after{
+  display:block!important;content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:2;
+  background:linear-gradient(180deg,rgba(255,255,255,.42) 0%,rgba(255,255,255,.08) 45%,rgba(255,255,255,0) 52%,rgba(20,5,40,.12) 100%);
+  box-shadow:inset 0 1.5px 1px rgba(255,255,255,.8),inset 0 -2px 2px rgba(40,5,30,.25);
+}
+/* ===== 3D bevel + gloss: Open model card (whole card) ===== */
+.l-main{
+  box-shadow:0 14px 34px rgba(210,73,122,.34),0 3px 0 rgba(90,20,70,.45),inset 0 1.5px 0 rgba(255,255,255,.75),inset 0 -2px 0 rgba(60,10,50,.3);
+}
+.l-main::after{
+  content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:2;
+  background:linear-gradient(180deg,rgba(255,255,255,.4) 0%,rgba(255,255,255,.06) 48%,rgba(255,255,255,0) 54%,rgba(20,5,40,.1) 100%);
+  box-shadow:inset 0 1.5px 1px rgba(255,255,255,.7);
+}
+/* ===== 3D bevel + gloss: Start from scratch, plus container only ===== */
+.l-card:not(.l-main) .l-ic{
+  position:relative;
+  box-shadow:0 4px 10px rgba(163,49,138,.3),0 2px 0 rgba(90,20,70,.45),inset 0 1.5px 0 rgba(255,255,255,.75),inset 0 -2px 0 rgba(60,10,50,.35);
+}
+.l-card:not(.l-main) .l-ic::after{
+  content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:1;
+  background:linear-gradient(180deg,rgba(255,255,255,.45) 0%,rgba(255,255,255,0) 55%);
+}
+/* ===== liquid pass: nav-style liquid across buttons, create/train images, progress bar and ring ===== */
+/* navbar capsule: crisp container, blurred liquid inside, shinier glass finish */
+.nav-ind{background:var(--grad)}
+.nav-ind>.lqbtn{filter:blur(2.5px)}
+.nav-ind::after{
+  content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:3;
+  background:
+    radial-gradient(60% 90% at 26% 0%,rgba(255,255,255,.85) 0,rgba(255,255,255,0) 60%),
+    linear-gradient(180deg,rgba(255,255,255,0) 55%,rgba(20,5,40,.18) 100%);
+  box-shadow:inset 0 2px 1px rgba(255,255,255,.8),inset 0 -2px 3px rgba(20,8,60,.25);
+}
+/* create result and train preview images: same nav-style liquid, softened */
+.lqov,.lqtile{filter:blur(3px)}
+/* photo processing progress line: liquid, a little thicker */
+.bar{height:8px}
+.bar i>.lqbtn{filter:blur(2px)}
+/* training circular progress: liquid fill */
+.ring:not(.done) .val{stroke:url(#rgp)}
+.ring .val,.ring.live .val{filter:blur(1px)}
+/* training tab dot: translucent orange liquid bead */
+.is-training .tab[data-tab=train]::after{
+  background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.85) 0,rgba(245,154,60,.55) 42%,rgba(226,72,122,.35) 100%);
+  box-shadow:0 0 8px rgba(245,154,60,.55),inset 0 1px 1px rgba(255,255,255,.7);
+  opacity:.9;
+}
+/* ===== navbar liquid restored: blurred smooth liquid inside the capsule (no crisp base) ===== */
+.nav-ind{background:none}
+.nav-ind>.lqbtn{filter:blur(5px)}
+/* primary buttons: same blurred liquid as the navbar */
+.btn.primary:not(.busy)>.lqbtn{filter:blur(5px)}
+/* ===== copy the navbar blur to the primary buttons: no crisp base under the liquid, same blurred canvas ===== */
+.btn.primary:not(:disabled):not(.busy){background:none}
+.btn.primary:not(.busy)>.lqbtn{filter:blur(5px)}
+/* ===== training tab dot: translucent orange liquid glass, no shine ===== */
+.is-training .tab[data-tab=train]::after{
+  background:radial-gradient(circle at 50% 50%,rgba(245,154,60,.5) 0,rgba(245,154,60,.34) 60%,rgba(226,72,122,.26) 100%);
+  box-shadow:0 0 6px rgba(245,154,60,.3),inset 0 0 0 1px rgba(245,154,60,.4);
+  -webkit-backdrop-filter:blur(2px) saturate(160%);backdrop-filter:blur(2px) saturate(160%);
+  opacity:.85;
+}
+/* ===== training ring: crisp moving arc, thicker so done/not-done reads clearly, blur lives in the liquid fill ===== */
+.ring .val,.ring.live .val{filter:none}
+.ring circle{stroke-width:9}
+.ring .trk{stroke:rgba(120,120,128,.24)}
+/* ===== training ring: thinner unfilled track, filled arc keeps its size, edge light on the filled arc ===== */
+.ring .trk{stroke-width:4}
+.ring .val,.ring.live .val{filter:drop-shadow(0 -1px 0 rgba(255,255,255,.8)) drop-shadow(0 1px 0 rgba(20,8,60,.22))}
+/* ===== training ring: gap between filled arc and track, bevel light inside the filled arc, ring sized to fit ===== */
+.ring,.ring svg{width:199px;height:199px}
+.ring .trk{stroke-width:3}
+.ring .val,.ring.live .val{filter:url(#ringBevel)}
+/* ===== low-end pass: cheaper gradients on weak devices; soft primary-button shadow with some definition ===== */
+.lqbg{filter:none}
+
+
+
+/* primary buttons: smoother shadow, still with some edge definition */
+.btn.primary:not(:disabled):not(.busy){
+  box-shadow:0 3px 6px rgba(210,73,122,.22),0 10px 22px rgba(210,73,122,.26),0 2px 1px rgba(90,20,70,.3),inset 0 1.5px 0 rgba(255,255,255,.75),inset 0 -2px 0 rgba(60,10,50,.35),inset 0 0 0 1px rgba(255,255,255,.18);
+}
+/* ===== minimum-spec pass (2 cores / 2 GB): plain CSS gradients, no canvas, no backdrop blur, no looping motion ===== */
+
+.lite2 .tabbar,.lite2 .dd-menu,.lite2 .save-fab{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+.lite2 .tabbar{background:rgba(255,255,255,.96)!important}
+.lite2 *,.lite2 *::before,.lite2 *::after{animation:none!important;transition-duration:0s!important}
+.lite2 .btn.primary:not(:disabled):not(.busy){box-shadow:0 6px 14px rgba(210,73,122,.28),0 2px 1px rgba(90,20,70,.3)!important}
+/* ===== open-model capsule: 3D bevel and liquid glass, lit by a computed specular filter ===== */
+.l-main .l-ic{
+  border-radius:999px;
+  background:rgba(255,255,255,.2);
+  -webkit-backdrop-filter:blur(6px) saturate(180%);backdrop-filter:blur(6px) saturate(180%);
+  filter:url(#glassBevel);
+  box-shadow:inset 0 1.5px 0 rgba(255,255,255,.8),inset 0 -2px 0 rgba(20,5,40,.2),0 3px 8px rgba(20,5,40,.2);
+}
+/* ===== open-model capsule: refraction of what is behind it (displacement warp), liquid glass finish ===== */
+.l-main .l-ic{
+  -webkit-backdrop-filter:url(#liquidRefract) saturate(180%) brightness(1.06);
+  backdrop-filter:url(#liquidRefract) saturate(180%) brightness(1.06);
+}
+/* ===== open-model capsule: clean Figma-style liquid glass; icon stays crisp, lighting sits on its own layer ===== */
+.l-main .l-ic{
+  position:relative;
+  filter:none;
+  background:rgba(255,255,255,.06);
+  -webkit-backdrop-filter:url(#liquidRefract) blur(8px) saturate(160%);
+  backdrop-filter:url(#liquidRefract) blur(8px) saturate(160%);
+  box-shadow:inset 0 0 0 .5px rgba(255,255,255,.35),inset 0 1px 1px rgba(255,255,255,.55),0 4px 12px rgba(20,5,40,.12);
+}
+.l-main .l-ic::before{
+  content:"";position:absolute;inset:0;border-radius:inherit;padding:1px;pointer-events:none;z-index:1;
+  background:linear-gradient(135deg,rgba(255,255,255,.95) 0%,rgba(255,255,255,.12) 42%,rgba(255,255,255,.04) 62%,rgba(255,255,255,.55) 100%);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;
+  mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0);
+}
+/* ===== open-model capsule: depth, top highlight, dark bottom-right edge, stronger refraction ===== */
+.l-main .l-ic{
+  box-shadow:inset 2px 3px 6px rgba(255,255,255,.6),inset -3px -5px 8px rgba(20,5,40,.4),0 6px 16px rgba(20,5,40,.25);
+  -webkit-backdrop-filter:url(#liquidRefract) blur(4px) saturate(170%) brightness(1.05);
+  backdrop-filter:url(#liquidRefract) blur(4px) saturate(170%) brightness(1.05);
+}
+/* ===== open-model capsule, reference pass: thicker bright rim, lens-edge darkening, soft drop shadow (as in the reference) ===== */
+.l-main .l-ic{
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.35),inset 2px 3px 6px rgba(255,255,255,.6),inset 0 -5px 8px rgba(20,5,40,.3),inset -3px -5px 8px rgba(20,5,40,.25),0 10px 22px rgba(20,5,40,.22);
+}
+.l-main .l-ic::before{
+  padding:2px;
+  background:linear-gradient(135deg,rgba(255,255,255,1) 0%,rgba(255,255,255,.4) 35%,rgba(200,215,255,.15) 60%,rgba(255,255,255,.8) 100%);
+}
+/* ===== open-model capsule, WWDC reference pass: clearer body, thin crisp rim, soft diffuse shadow ===== */
+.l-main .l-ic{
+  background:rgba(255,255,255,.04);
+  -webkit-backdrop-filter:url(#liquidRefract) blur(2px) saturate(150%) brightness(1.04);
+  backdrop-filter:url(#liquidRefract) blur(2px) saturate(150%) brightness(1.04);
+  box-shadow:inset 0 0 0 .5px rgba(255,255,255,.5),inset 1px 2px 4px rgba(255,255,255,.55),inset -2px -4px 8px rgba(255,255,255,.12),inset 0 -6px 10px rgba(20,5,40,.16),0 14px 30px rgba(20,5,40,.16),0 3px 6px rgba(20,5,40,.1);
+}
+.l-main .l-ic::before{
+  padding:1.2px;
+  background:linear-gradient(140deg,rgba(255,255,255,1) 0%,rgba(255,255,255,.25) 30%,rgba(255,255,255,.05) 58%,rgba(255,255,255,.6) 100%);
+}
+/* ===== launch screen 3D pass: light from the top-left, sharp-ish shadows fall to the bottom-right ===== */
+.launch h1,.launch p,.launch b,.launch small{text-shadow:1px 2px 2px rgba(20,5,40,.18)}
+.l-card{box-shadow:3px 5px 6px rgba(20,5,40,.12),0 1px 2px rgba(20,5,40,.08)}
+.l-main{box-shadow:4px 6px 8px rgba(20,5,40,.2),0 14px 34px rgba(210,73,122,.3),0 3px 0 rgba(90,20,70,.4),inset 0 1.5px 0 rgba(255,255,255,.75),inset 0 -2px 0 rgba(60,10,50,.3)}
+.l-main .l-ic{box-shadow:inset 0 0 0 .5px rgba(255,255,255,.5),inset 1px 2px 4px rgba(255,255,255,.55),inset -2px -4px 8px rgba(255,255,255,.12),inset 0 -6px 10px rgba(20,5,40,.16),3px 4px 5px rgba(20,5,40,.22),0 14px 30px rgba(20,5,40,.16)}
+.l-card:not(.l-main) .l-ic{box-shadow:2px 3px 4px rgba(20,5,40,.26),0 4px 10px rgba(163,49,138,.25),inset 0 1.5px 0 rgba(255,255,255,.75),inset 0 -2px 0 rgba(60,10,50,.35)}
+/* ===== liquid shadows: soft, colour-tinted, layered and pooled under the Open model card and its capsule ===== */
+.l-main{box-shadow:
+  inset 0 1.5px 0 rgba(255,255,255,.75),inset 0 -2px 0 rgba(60,10,50,.3),
+  6px 10px 18px rgba(120,40,110,.16),
+  12px 22px 40px rgba(210,73,122,.18),
+  20px 36px 64px rgba(232,96,60,.12)}
+.l-main .l-ic{box-shadow:
+  inset 0 0 0 .5px rgba(255,255,255,.5),inset 1px 2px 4px rgba(255,255,255,.55),inset -2px -4px 8px rgba(255,255,255,.12),inset 0 -6px 10px rgba(20,5,40,.14),
+  4px 6px 10px rgba(120,40,110,.18),
+  8px 14px 24px rgba(20,5,40,.12)}
+/* ===== navbar liquid glass: warps the light behind it instead of frosting it, so white images stay clean ===== */
+.tabbar{
+  background:linear-gradient(180deg,rgba(255,255,255,.12) 0%,rgba(255,255,255,.03) 60%,rgba(255,255,255,.08) 100%);
+  -webkit-backdrop-filter:url(#liquidRefract) saturate(150%);
+  backdrop-filter:url(#liquidRefract) saturate(150%);
+  box-shadow:inset 0 1.5px 0 rgba(255,255,255,.8),inset 0 -2px 0 rgba(20,5,40,.12),6px 10px 18px rgba(120,40,110,.14),0 14px 30px rgba(20,5,40,.16);
+}
+.tabbar::before{opacity:.45}
+/* ===== capsule reflections: specular edge light top-left, reflected light bouncing back along the bottom-right rim ===== */
+.l-main .l-ic::after{
+  content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:2;mix-blend-mode:screen;
+  background:
+    radial-gradient(70% 45% at 30% 6%,rgba(255,255,255,.85) 0,rgba(255,255,255,0) 70%),
+    radial-gradient(60% 40% at 74% 100%,rgba(190,215,255,.55) 0,rgba(190,215,255,0) 72%),
+    radial-gradient(30% 25% at 88% 80%,rgba(255,220,235,.4) 0,rgba(255,220,235,0) 80%);
+}
+/* ===== navbar capsule reflections: same specular top-left and reflected bottom-right light as the Open model capsule ===== */
+.tabbar{
+  background:
+    radial-gradient(60% 90% at 26% 0%,rgba(255,255,255,.7) 0,rgba(255,255,255,0) 60%),
+    radial-gradient(50% 60% at 78% 100%,rgba(190,215,255,.45) 0,rgba(190,215,255,0) 70%),
+    linear-gradient(180deg,rgba(255,255,255,.12) 0%,rgba(255,255,255,.03) 60%,rgba(255,255,255,.08) 100%);
+}
+/* ===== 3D text: embossed light top edge with a soft dark drop beneath, across the app ===== */
+h1,h2,h3,p,b,small,label,.tab,.group-title,.brand,.pill,.eyebrow,.foot,.row .t,.row .t small,.empty h2,.empty p{
+  text-shadow:0 1px 0 rgba(255,255,255,.75),0 2px 3px rgba(20,5,40,.16);
+}
+/* text on coloured or dark surfaces keeps a deeper shadow so it stays readable */
+.btn.primary,.btn.primary *,.l-main,.l-main *,.toast,.toast *{
+  text-shadow:0 1px 2px rgba(40,5,40,.35),0 0 1px rgba(40,5,40,.2);
+}
+.l-foot{margin:18px 4px 0;font-size:12.5px;color:var(--label3);text-align:center}
+/* finished reply bubbles drop the loading liquid */
+.msg.a:not(.busy)>.lqbtn{display:none!important}
+/* reasoning in chat: plain clickable text */
+.think{margin:0 0 6px;font-size:13px;color:var(--label3)}
+.think summary{cursor:pointer;list-style:none;display:inline;user-select:none}
+.think summary::-webkit-details-marker{display:none}
+.think summary:hover{color:var(--label2)}
+.think .tb{margin:4px 0 0;white-space:pre-wrap;line-height:1.45}
+/* laptop layout */
+}
+/* compatibility notices for older models */
+.compat{margin:0 0 14px;padding:12px 14px;border-radius:16px;background:rgba(245,154,60,.14);box-shadow:inset 0 0 0 1px rgba(226,110,40,.28);color:#6B3410;font-size:13.5px;line-height:1.4}
+.compat b{display:block;margin-bottom:4px;font-weight:700;color:#5A2A08}
+.compat ul{margin:0;padding-left:18px}.compat li{margin:3px 0}
+.compat button{margin-top:8px;border:0;background:rgba(255,255,255,.7);color:#6B3410;font:inherit;font-weight:600;padding:6px 12px;border-radius:10px;cursor:pointer}
+/* gradient text stays crisp: shadows would show through the transparent fill */
+.brand,.sheet .group-title{text-shadow:none!important;filter:none!important}
+/* ===== motion: navbar rises in, tabs press, screens switch with a liquid blur-in; selected segment takes the liquid gradient ===== */
+@keyframes navRise{from{translate:0 140%;opacity:0}to{translate:0 0;opacity:1}}
+@keyframes liquidIn{from{opacity:0;filter:blur(10px);scale:1.02}to{opacity:1;filter:blur(0);scale:1}}
+.tabbar{animation:navRise .75s cubic-bezier(.2,.8,.2,1) both}
+.tab{transition:scale .18s ease}
+.tab:active{scale:.93}
+.screen.on{animation:liquidIn .5s cubic-bezier(.2,.8,.2,1) both}
+.seg input:checked+span{background:var(--grad);color:#fff;box-shadow:0 4px 12px rgba(210,73,122,.3);text-shadow:0 1px 2px rgba(60,10,50,.3)}
+/* ===== selected segment: the main app's animated liquid gradient, same blurred treatment as the navbar ===== */
+.seg input+span>.lqbtn{filter:blur(3px)}
+/* ===== selected tab capsule: glides from its last position with a stretch-and-settle, Apple-style ===== */
+.nav-ind{transition:transform .55s cubic-bezier(.34,1.2,.5,1)}
+.in[data-i="0"] .nav-ind{animation:stretch0 .6s cubic-bezier(.2,.8,.2,1)}
+.in[data-i="1"] .nav-ind{animation:stretch1 .6s cubic-bezier(.2,.8,.2,1)}
+.in[data-i="2"] .nav-ind{animation:stretch2 .6s cubic-bezier(.2,.8,.2,1)}
+@keyframes stretch0{0%{scale:1 1}35%{scale:1.22 .9}70%{scale:.96 1.03}100%{scale:1 1}}
+@keyframes stretch1{0%{scale:1 1}35%{scale:1.22 .9}70%{scale:.96 1.03}100%{scale:1 1}}
+@keyframes stretch2{0%{scale:1 1}35%{scale:1.22 .9}70%{scale:.96 1.03}100%{scale:1 1}}
+/* ===== selected tab capsule: glide uses translate, stretch uses transform, so the two no longer fight each other ===== */
+.nav-ind{transition:translate .55s cubic-bezier(.34,1.2,.5,1)}
+.in[data-i="0"] .nav-ind{transform:none;translate:0 0}
+.in[data-i="1"] .nav-ind{transform:none;translate:100% 0}
+.in[data-i="2"] .nav-ind{transform:none;translate:200% 0}
+@keyframes stretch0{0%{transform:scaleX(1) scaleY(1)}35%{transform:scaleX(1.22) scaleY(.9)}70%{transform:scaleX(.96) scaleY(1.03)}100%{transform:scaleX(1) scaleY(1)}}
+@keyframes stretch1{0%{transform:scaleX(1) scaleY(1)}35%{transform:scaleX(1.22) scaleY(.9)}70%{transform:scaleX(.96) scaleY(1.03)}100%{transform:scaleX(1) scaleY(1)}}
+@keyframes stretch2{0%{transform:scaleX(1) scaleY(1)}35%{transform:scaleX(1.22) scaleY(.9)}70%{transform:scaleX(.96) scaleY(1.03)}100%{transform:scaleX(1) scaleY(1)}}
+/* ===== selected tab capsule: glides between tabs on left (works in every browser), then pops up to a big size and settles ===== */
+.nav-ind{transition:left .55s cubic-bezier(.34,1.2,.5,1)}
+.in[data-i="0"] .nav-ind{transform:none;translate:none;left:0}
+.in[data-i="1"] .nav-ind{transform:none;translate:none;left:33.333%}
+.in[data-i="2"] .nav-ind{transform:none;translate:none;left:66.667%}
+.in[data-i="0"] .nav-ind{animation:stretch0 .6s .3s cubic-bezier(.2,.8,.2,1) both}
+.in[data-i="1"] .nav-ind{animation:stretch1 .6s .3s cubic-bezier(.2,.8,.2,1) both}
+.in[data-i="2"] .nav-ind{animation:stretch2 .6s .3s cubic-bezier(.2,.8,.2,1) both}
+@keyframes stretch0{0%{transform:scale(1)}40%{transform:scaleX(1.22) scaleY(1.1)}75%{transform:scaleX(.97) scaleY(.98)}100%{transform:scale(1)}}
+@keyframes stretch1{0%{transform:scale(1)}40%{transform:scaleX(1.22) scaleY(1.1)}75%{transform:scaleX(.97) scaleY(.98)}100%{transform:scale(1)}}
+@keyframes stretch2{0%{transform:scale(1)}40%{transform:scaleX(1.22) scaleY(1.1)}75%{transform:scaleX(.97) scaleY(.98)}100%{transform:scale(1)}}
+[hidden]{display:none!important}
+
+/* ===== laptop / PC layout: sidebar navigation, wide content, sticky training panel ===== */
+@media (min-width:1000px){
+  body{padding-left:232px;padding-bottom:40px}
+  .tabbar{left:20px;right:auto;top:50%;bottom:auto;width:192px;padding:8px;border-radius:26px;transform:translateY(-50%)}
+  .tabbar .in{flex-direction:column;gap:2px}
+  .tab{flex:none;min-height:48px;justify-content:flex-start;padding:0 18px;font-size:14px}
+  .nav-ind{top:0;bottom:auto;height:33.333%;width:100%}
+  .nav-ind{transition:translate .5s cubic-bezier(.34,1.2,.5,1)}
+  .in[data-i="0"] .nav-ind,.in[data-i="1"] .nav-ind,.in[data-i="2"] .nav-ind{animation:none;transform:none;left:0}
+  .in[data-i="0"] .nav-ind{translate:0 0}.in[data-i="1"] .nav-ind{translate:0 100%}.in[data-i="2"] .nav-ind{translate:0 200%}
+  .wrap{padding:0 32px}
+  body[data-tab=train] .wrap{max-width:1120px}
+  body[data-tab=chat] .wrap{max-width:820px;padding-bottom:110px}
+  body[data-tab=model] .wrap{max-width:720px}
+  .top{padding-top:48px}
+  #tab-train.on{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:36px;align-items:start}
+  #tab-train .tcol:last-child{position:sticky;top:24px}
+  .composer{left:calc(50% + 116px);width:min(calc(100% - 320px),780px);bottom:24px}
+  body .msg{max-width:78%}
+  .save-fab{top:28px;right:32px}
+}
+@media (min-width:1000px) and (hover:hover){
+  .row:hover{background:rgba(120,90,160,.05)}
+  .btn:hover{filter:brightness(1.05)}
+  .tab:hover{color:var(--label2)}
+}
+
+/* ===== laptop / PC polish: even gaps, sticky shrinking header, soft panel, smooth scrolling ===== */
+@media (min-width:1000px){
+  html{scroll-behavior:smooth;scrollbar-width:thin;scrollbar-color:rgba(120,90,160,.28) transparent}
+  ::-webkit-scrollbar{width:10px}::-webkit-scrollbar-thumb{background:rgba(120,90,160,.25);border-radius:10px;border:3px solid transparent;background-clip:content-box}
+  .wrap{padding:0 44px}
+  .top{position:sticky;top:0;z-index:15;margin:0 -44px 12px;padding:44px 44px 22px;background:linear-gradient(var(--bg) 80%,rgba(248,246,250,0));transition:padding .3s cubic-bezier(.2,.8,.2,1)}
+  .top h1{transition:font-size .3s cubic-bezier(.2,.8,.2,1)}
+  .top .sub{transition:opacity .25s ease,max-height .3s ease,margin .3s ease;max-height:30px;overflow:hidden}
+  body.scrolled .top{padding-top:20px;padding-bottom:16px}
+  body.scrolled .top h1{font-size:26px}
+  body.scrolled .top .sub{opacity:0;max-height:0;margin:0}
+  .group-title{margin:28px 18px 10px}
+  .group-title:first-child{margin-top:0}
+  .card,.list{margin-bottom:22px}
+  #tab-train.on{gap:44px}
+  #tab-train .tcol:last-child{top:112px;padding:26px 26px 22px;border-radius:30px;background:rgba(255,255,255,.72);box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 18px 44px rgba(70,40,120,.08)}
+  #tab-train .tcol:last-child .card.flat{background:rgba(120,90,160,.06);box-shadow:none}
+  #tab-train .tcol:last-child>*:last-child{margin-bottom:0}
+  #tab-train .tcol:first-child .card.flat{padding-left:0;padding-right:0;margin-top:34px}
+  #tab-train .tcol:first-child .card.flat>h2,#tab-train .tcol:first-child .card.flat>.lead{margin-left:18px;margin-right:18px}
+  #tab-train .tcol:last-child .card.flat{border-radius:20px}
+  #tab-train .tcol:last-child .plot{background:rgba(120,90,160,.06);border-radius:20px}
+  body[data-tab=chat] .wrap{padding-bottom:130px}
+  .composer{box-shadow:0 14px 40px rgba(70,40,120,.14)}
+}
+@media (min-width:1000px) and (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style>
+<script>
+/* pixel-noise tiles in the theme colours (seeded, generated once) */
+(function(){try{
+  var dpr=Math.min(window.devicePixelRatio||1,3),seed=7;function r(){seed=(seed*1664525+1013904223)>>>0;return seed/4294967296}
+  function tile(size,dot,dens,cols,a0,a1){var c=document.createElement('canvas');c.width=c.height=Math.round(size*dpr);var x=c.getContext('2d'),d=Math.max(1,Math.round(dot*dpr)),n=Math.round(c.width/d);
+    for(var i=0;i<n;i++)for(var j=0;j<n;j++){if(r()>dens)continue;x.globalAlpha=a0+r()*(a1-a0);x.fillStyle=cols[Math.floor(r()*cols.length)];x.fillRect(i*d,j*d,d,d);}
+    return 'url('+c.toDataURL()+') 0 0/'+size+'px '+size+'px';}
+  var th=['#A3318A','#D2497A','#EE7A3C','#F5B04A','#4F6BE0'],st=document.documentElement.style;
+  st.setProperty('--noise-big',tile(128,2,.14,th,.45,1).replace(/ 0 0\/.*$/,''));
+  st.setProperty('--noise-fine',tile(96,1,.3,['#FFFFFF','#FFD9A8','#FFB7D5'],.12,.34));
+}catch(e){}})();
+</script>
+<script>window.LOW=1;</script>
+
+<style>
+.msgs{display:flex;flex-direction:column;gap:12px;padding-bottom:150px}
+.msg{max-width:84%;padding:12px 16px;border-radius:20px;white-space:pre-wrap;word-wrap:break-word;line-height:1.4;position:relative;overflow:hidden;isolation:isolate}
+.msg.u{align-self:flex-end;color:#fff;border-bottom-right-radius:6px;background:var(--grad)}
+.msg.a{align-self:flex-start;background:var(--surface);box-shadow:var(--shadow);border-bottom-left-radius:6px;min-width:64px;min-height:46px}
+.msg.a.busy{background:none;box-shadow:none;color:transparent}
+.msg.u>.lqbtn{filter:blur(4px)}.msg.a.busy>.lqbtn{filter:blur(6px)}.plot>.lqbtn{filter:blur(3px)}
+.composer{display:none;position:fixed;left:50%;transform:translateX(-50%);width:min(calc(100% - 28px),560px);bottom:calc(88px + env(safe-area-inset-bottom));z-index:19;align-items:flex-end;gap:8px;padding:6px 6px 6px 18px;border-radius:28px;background:rgba(255,255,255,.9);-webkit-backdrop-filter:blur(18px) saturate(1.6);backdrop-filter:blur(18px) saturate(1.6);box-shadow:0 1px 2px rgba(16,24,40,.05),0 10px 30px rgba(16,24,40,.10)}
+body.onchat .composer{display:flex}
+.composer textarea{flex:1;border:0;outline:0;resize:none;background:none;padding:11px 0;max-height:120px;min-height:24px;font-size:17px;line-height:1.3}
+.btn.send{width:46px;min-height:46px;height:46px;padding:0;border-radius:50%;flex:none}
+.btn.send+.btn{margin:0}
+.ta,.composer textarea{color:#1C1C1E;-webkit-text-fill-color:#1C1C1E;caret-color:#C23B72}.ta::placeholder,.composer textarea::placeholder{color:#8E8E93;-webkit-text-fill-color:#8E8E93}
+.ta{display:block;width:100%;min-height:170px;border:0;border-radius:var(--r-ctl);background:var(--fill2);padding:14px 16px;font-size:16px;resize:vertical;outline:0}
+.ta:focus-visible{outline:3px solid var(--accent);outline-offset:1px}
+.plot{position:relative;overflow:hidden;isolation:isolate;height:150px;border-radius:var(--r-card);background:var(--surface);box-shadow:var(--shadow);margin-bottom:16px}
+.plot canvas.cv{position:absolute;inset:0;width:100%;height:100%;z-index:1}
+.plot.live{background:none}
+.stat3 b{font-size:24px}
+.two{display:flex;gap:10px}.two .btn{margin:0}
+.err{color:var(--danger);font-size:14px;margin:8px 2px 0;min-height:0}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.chips:empty{display:none}.chip{font-size:12.5px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--fill2,#f0eef2);color:var(--label2,#6b6770)}
+.msg.a.busy .tx{color:transparent}
+#stv.ultra{font-weight:700;background:linear-gradient(90deg,#E8368F,#FF8A3D,#6F8CFF,#E8368F);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;animation:mflow 4s linear infinite,mfade .3s ease both}
+@keyframes mflow{to{background-position:-200% 0}}@keyframes mfade{from{opacity:0}to{opacity:1}}
+.slider.max input[type=range]{-webkit-appearance:none;appearance:none;background:transparent;height:30px}
+.slider.max input[type=range]::-webkit-slider-runnable-track{height:6px;border-radius:3px;background:linear-gradient(90deg,#E8368F,#FF8A3D,#6F8CFF)}
+.slider.max input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;height:26px;border-radius:50%;margin-top:-10px;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.25),0 0 0 1px rgba(0,0,0,.06)}
+.slider.max input[type=range]::-moz-range-track{height:6px;border-radius:3px;background:linear-gradient(90deg,#E8368F,#FF8A3D,#6F8CFF)}
+.slider.max input[type=range]::-moz-range-thumb{width:26px;height:26px;border:0;border-radius:50%;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.25)}
+.tabbar{background:var(--noise-fine),linear-gradient(180deg,rgba(255,255,255,.34) 0%,rgba(240,236,255,.16) 55%,rgba(255,255,255,.26) 100%);background-blend-mode:soft-light,normal;-webkit-backdrop-filter:blur(30px) saturate(220%) brightness(1.06);backdrop-filter:blur(30px) saturate(220%) brightness(1.06)}
+body::after{content:"";position:fixed;left:0;right:0;bottom:0;height:260px;z-index:-1;pointer-events:none;background:radial-gradient(55% 100% at 18% 100%,rgba(232,54,143,.26),transparent 70%),radial-gradient(55% 100% at 82% 100%,rgba(111,140,255,.3),transparent 70%),radial-gradient(40% 80% at 50% 100%,rgba(255,138,61,.2),transparent 70%)}
+.sendic{width:22px;height:22px;stroke-width:2.4}
+</style>
+</head>
+<body class="onchat">
+<noscript><p style="padding:24px;font:16px system-ui">Mica needs JavaScript to train and run a model in your browser.</p></noscript>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><filter id="glassBevel" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB"><feGaussianBlur in="SourceAlpha" stdDeviation="2.4" result="blur"/><feSpecularLighting in="blur" surfaceScale="3.2" specularConstant="1.15" specularExponent="24" lighting-color="#ffffff" result="spec"><fePointLight x="-30" y="-50" z="140"/></feSpecularLighting><feComposite in="spec" in2="SourceAlpha" operator="in" result="specIn"/><feComposite in="SourceGraphic" in2="specIn" operator="arithmetic" k1="0" k2="1" k3=".55" k4="0" result="lit"/><feMerge><feMergeNode in="lit"/></feMerge></filter><filter id="liquidRefract" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB"><feTurbulence type="fractalNoise" baseFrequency="0.05 0.07" numOctaves="2" seed="7" result="warp"/><feDisplacementMap in="SourceGraphic" in2="warp" scale="22" xChannelSelector="R" yChannelSelector="G"/></filter></defs></svg>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 6.5A2.5 2.5 0 016.5 4h11A2.5 2.5 0 0120 6.5v7a2.5 2.5 0 01-2.5 2.5H11l-4.5 3.5V16A2.5 2.5 0 014 13.5z"/></symbol>
+<symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13.2 3L5.5 13.8h5.8L10.4 21l8.1-11h-5.9L13.2 3z"/></symbol>
+<symbol id="i-cube" viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/></symbol>
+<symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h9M19 7h1M4 17h1M11 17h9"/><circle cx="16" cy="7" r="2.4"/><circle cx="8" cy="17" r="2.4"/></symbol>
+<symbol id="i-up" viewBox="0 0 24 24"><path d="M12 15V4M7.5 8.5L12 4l4.5 4.5M5 14v3.5a2 2 0 002 2h10a2 2 0 002-2V14"/></symbol>
+<symbol id="i-down" viewBox="0 0 24 24"><path d="M12 4v11M7.5 11L12 15.5 16.5 11M5 19.5h14"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="i-pause" viewBox="0 0 24 24"><path d="M8.5 5.5v13M15.5 5.5v13"/></symbol>
+<symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5l11 6.5-11 6.5z"/></symbol>
+<symbol id="i-send" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></symbol>
+<symbol id="i-doc" viewBox="0 0 24 24"><path d="M7 3.5h7l4 4V19a1.5 1.5 0 01-1.5 1.5h-9.5A1.5 1.5 0 015.5 19V5A1.5 1.5 0 017 3.5z"/><path d="M14 3.5V8h4M8.5 12.5h7M8.5 16h5"/></symbol>
+</defs></svg>
+
+<div class="wrap">
+  <header class="top">
+    <div><p class="brand">Mica</p><h1 id="title">Chat</h1><p class="sub" id="subtitle"></p></div>
+    <button class="icon-btn" id="btnAdv" aria-label="Advanced settings"><svg class="ic"><use href="#i-sliders"/></svg></button>
+  </header>
+
+  <section class="screen on" id="tab-chat" aria-labelledby="title">
+    <div class="compat" id="compatChat" hidden></div>
+    <div class="card empty flat" id="chatEmpty">
+      <div class="badge"><svg class="ic"><use href="#i-chat"/></svg></div>
+      <h2>No model yet</h2>
+      <p>Train a small model on your own text, or open one you saved. Everything stays on your device.</p>
+      <button class="btn primary" id="eTrain">Train a model</button>
+      <button class="btn plain" id="eOpen">Open model</button>
+    </div>
+    <div class="msgs" id="msgs"></div>
+  </section>
+
+  <section class="screen" id="tab-train" aria-labelledby="title">
+    <div class="tcol">
+    <p class="group-title">Samples</p>
+    <div class="list" id="samples">
+      <div class="row" role="button" tabindex="0" data-s="simple"><span class="t"><b>Simple</b><small>Greetings and small talk</small></span><span class="v">Use</span></div>
+      <div class="row" role="button" tabindex="0" data-s="detailed"><span class="t"><b>Detailed</b><small>Facts, feelings, maths and tips</small></span><span class="v">Use</span></div>
+      <div class="row" role="button" tabindex="0" data-s="coding"><span class="t"><b>Coding</b><small>Python, JavaScript and HTML snippets</small></span><span class="v">Use</span></div>
+      <div class="row" role="button" tabindex="0" data-s="flagship"><span class="t"><b>Flagship</b><small>Everything, plus calculator, clock and calendar tools</small></span><span class="v">Use</span></div>
+    </div>
+    <div style="height:14px"></div>
+    <div class="card flat">
+      <h2>Your text</h2>
+      <p class="lead">Paste text or add files. Paste plain text, or use the samples above. For chat data, write each pair as <|q|> question <|a|> answer <|end|>.</p>
+      <div style="height:14px"></div>
+      <div id="docs"></div>
+      <div style="height:12px"></div>
+      <button class="btn" id="addDoc"><svg class="ic"><use href="#i-plus"/></svg>Add another text</button>
+      <div class="two" style="margin-top:10px"><button class="btn" id="pick"><svg class="ic"><use href="#i-doc"/></svg>Add files</button><button class="btn" id="clr">Clear all</button></div>
+      <input type="file" id="tfile" accept=".txt,text/plain" multiple hidden>
+    </div>
+    </div>
+    <div class="tcol">
+    <div class="card flat"><div class="stat3" style="padding:2px 0"><div><b id="sW">0</b><span>words</span></div><div><b id="sC">0</b><span>chunks</span></div><div><b id="sT">0</b><span>trimmed</span></div></div></div>
+    <div class="plot" id="plot"><canvas class="cv" id="cv"></canvas></div>
+    <div class="bar" id="prog"><i style="width:0%"></i></div>
+    <p class="foot" id="cust" hidden style="color:#C23B72">Heads up: this text is not one of the built-in samples, so it will not be saved in the .mica file. You will not be able to resume training after you reopen the model.</p>
+    <p class="foot" id="stat">Loss appears here once training starts.</p>
+    <p class="err" id="err" role="alert"></p>
+    <div style="height:8px"></div>
+    <button class="btn primary" id="go" disabled><span class="lbl">Start training</span></button>
+    <button class="btn plain" id="fresh" hidden>Start a new model</button>
+    </div>
+  </section>
+
+  <section class="screen" id="tab-model" aria-labelledby="title">
+    <div class="compat" id="compatModel" hidden></div>
+    <div class="list">
+      <div class="row" style="cursor:default"><span class="t"><b>Parameters</b></span><span class="v" id="mP">–</span></div>
+      <div class="row" style="cursor:default"><span class="t"><b>Layers</b></span><span class="v" id="mL">–</span></div>
+      <div class="row" style="cursor:default"><span class="t"><b>Context</b></span><span class="v" id="mT">–</span></div>
+      <div class="row" style="cursor:default"><span class="t"><b>Tokenizer</b></span><span class="v" id="mV">–</span></div>
+      <div class="row" style="cursor:default"><span class="t"><b>Tools</b></span><span class="v" id="mTools">–</span></div>
+      <div class="row" style="cursor:default"><span class="t"><b>Reasoning</b></span><span class="v" id="mRsn">–</span></div>
+      <div class="row" style="cursor:default"><span class="t"><b>Training loss</b></span><span class="v" id="mQ">–</span></div>
+      <div class="row" style="cursor:default"><span class="t"><b>Trained on</b></span><span class="v" id="mData">–</span></div>
+      <div class="row" style="cursor:default"><span class="t"><b>Status</b></span><span class="v" id="mst">Not trained</span></div>
+    </div>
+    <p class="group-foot" style="margin-top:8px">Small, quantized and saved as one .mica file.</p>
+    <div style="height:8px"></div>
+    <button class="btn primary" id="save" disabled><svg class="ic"><use href="#i-down"/></svg>Save model</button>
+    <button class="btn" id="mOpen"><svg class="ic"><use href="#i-up"/></svg>Open model</button>
+  </section>
+  <input id="mfile" type="file" accept=".mica" hidden>
+</div>
+
+<div class="composer" id="composer"><textarea id="inp" rows="1" maxlength="600" placeholder="Message" aria-label="Message"></textarea><button class="btn primary send" id="send" aria-label="Send" disabled><svg class="ic sendic"><use href="#i-send"/></svg></button></div>
+
+<div class="launch" id="launch"><div class="l-in">
+  <p class="brand">Mica</p>
+  <h2 class="l-h">A small chatbot that lives on your device.</h2>
+  <p class="l-sub">Open a saved model or train a new one.</p>
+  <button class="l-card l-main" id="lOpen"><span class="l-ic"><svg class="ic"><use href="#i-up"/></svg></span><span class="l-t"><b>Open model</b><small>Continue from a saved file</small></span></button>
+  <button class="l-card" id="lNew"><span class="l-ic"><svg class="ic"><use href="#i-plus"/></svg></span><span class="l-t"><b>Start from scratch</b><small>Train on your own text</small></span></button>
+<p class="l-foot">Made by Adarsh Binesh · Runs fully on your device</p>
+</div></div>
+
+<nav class="tabbar" role="tablist" aria-label="Sections"><div class="in" data-i="0"><i class="nav-ind"></i>
+  <button class="tab" role="tab" aria-selected="true" data-tab="chat"><svg class="ic"><use href="#i-chat"/></svg>Chat</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="train"><svg class="ic"><use href="#i-bolt"/></svg>Train</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="model"><svg class="ic"><use href="#i-cube"/></svg>Model</button>
+</div></nav>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="scrim" id="scrim"></div>
+
+<div class="sheet full" id="adv" role="dialog" aria-modal="true" aria-labelledby="advTitle">
+  <div class="grab"></div>
+  <div class="sheet-head"><h2 id="advTitle">Advanced</h2><button class="link" id="advDone">Done</button></div>
+  <div class="sheet-body">
+    <p class="group-foot" style="margin-top:4px">The recommended settings work well for most text. Change these only to experiment.</p>
+    <p class="group-title">Intelligence</p>
+    <div class="list">
+      <span id="ddO" data-v="adamw" hidden></span>
+      <div class="row" style="display:block;cursor:default;padding:12px 14px"><div class="seg" role="radiogroup" aria-label="Intelligence">
+        <label><input type="radio" name="preset" value="basic" checked><span>Basic</span></label>
+        <label><input type="radio" name="preset" value="work"><span>Work</span></label>
+        <label><input type="radio" name="preset" value="agentic"><span>Agentic</span></label></div></div>
+      <div class="row" style="cursor:default"><span class="t"><b>Parameters</b><small id="tierInfo">–</small></span><span class="v" id="tierP">–</span></div>
+    </div>
+    <p class="group-foot">A bigger model can learn more but takes longer to train. The size never depends on your device.</p>
+    <p class="group-title">Reasoning</p>
+    <div class="list">
+      <div class="row" style="display:block;cursor:default;padding:12px 14px"><div class="seg" role="radiogroup" aria-label="Reasoning">
+        <label><input type="radio" name="reason" value="0"><span>Off</span></label>
+        <label><input type="radio" name="reason" value="1" checked><span>Basic</span></label>
+        <label><input type="radio" name="reason" value="2"><span>Medium</span></label>
+        <label><input type="radio" name="reason" value="3"><span>High</span></label></div>
+        <small id="rsnInfo" style="display:block;margin-top:8px;color:var(--label2)">A short thought for maths, tools and code. Greetings and chat get none.</small></div>
+    </div>
+    <p class="group-title">Device</p>
+    <div class="list">
+      <div class="row" style="display:block;cursor:default;padding:12px 14px"><div class="seg" role="radiogroup" aria-label="Device">
+        <label><input type="radio" name="device" value="mobile"><span>Mobile</span></label>
+        <label><input type="radio" name="device" value="tablet"><span>Tablet</span></label>
+        <label><input type="radio" name="device" value="windows" checked><span>Windows</span></label>
+        <label><input type="radio" name="device" value="linux"><span>Linux</span></label></div></div>
+      <div class="row" style="cursor:default"><span class="t"><b>CPU cores</b><small id="coreInfo">–</small></span><span class="v" id="coreUse">–</span></div>
+    </div>
+    <p class="group-foot">Your device only decides what share of its CPU cores training may use. The model stays the same size.</p>
+    <p class="group-title">Training</p>
+    <div class="list">
+      <div class="row" style="cursor:default"><span class="t"><b>Steps</b></span><span class="v" id="stv">5000</span></div>
+      <div class="pad slider"><input type="range" id="stp" min="200" max="8000" step="100" value="5000" aria-label="Training steps"></div>
+      <div class="row" style="cursor:default"><span class="t"><b>Words per chunk</b></span><span class="v" id="csv">500</span></div>
+      <div class="pad slider"><input type="range" id="cs" min="200" max="800" step="50" value="500" aria-label="Words per chunk"></div>
+    </div>
+    <p class="group-foot">Drag Steps all the way to the right for Unlimited. You can pause any time and continue later.</p>
+    <p class="group-title">Replies</p>
+    <div class="list">
+      <div class="row" style="cursor:default"><span class="t"><b>Creativity</b></span></div>
+      <div class="pad slider"><input type="range" id="crt" min="0" max="100" value="25" aria-label="Creativity"></div>
+      <div class="row" style="cursor:default"><span class="t"><b>Context used</b><small>Holds up to 10,240 tokens, sharpest under about 500</small></span><span class="v" id="memv">512</span></div>
+      <div class="pad slider"><input type="range" id="mem" min="256" max="10240" step="256" value="512" aria-label="Context used"></div>
+      <div class="row" style="cursor:default"><span class="t"><b>Reply length</b></span><span class="v" id="rlv">120</span></div>
+      <div class="pad slider"><input type="range" id="rl" min="20" max="300" value="120" aria-label="Reply length"></div>
+    </div>
+  </div>
+</div>
+
+<script id="eng">
+var LM=(function(){
+var F=Float32Array,SP=['<|q|>','<|a|>','<|end|>','<|u|>'];
+var PRE=/<\|q\|>|<\|a\|>|<\|end\|>| ?[A-Za-z_]\w*| ?\d+|\n[ \t]*|[ \t]+| ?[^\sA-Za-z0-9_]|\s/g;
+function gauss(){var u=1-Math.random(),v=Math.random();return Math.sqrt(-2*Math.log(u))*Math.cos(6.2832*v)}
+function mk(n,s){var a=new F(n);if(s)for(var i=0;i<n;i++)a[i]=gauss()*s;return a}
+function names(c){var n=['E'];for(var l=0;l<c.L;l++)n.push('q'+l,'k'+l,'v'+l,'o'+l,'a'+l,'g'+l,'b'+l);return n}
+/* tokenizer: plain byte-pair merges over words. Exact round trip: unknown characters are escaped, never changed. */
+var NS=4,HEX='0123456789abcdef';
+function mkTok(vocab,nBase,merges){var tk={vocab:vocab,nBase:nBase,merges:merges,cmap:Object.create(null),rank:new Map(),cache:Object.create(null)},i;
+  for(i=NS;i<nBase;i++)tk.cmap[vocab[i]]=i;
+  merges.forEach(function(m,j){tk.rank.set(m[0]*4096+m[1],nBase+j)});return tk}
+function trainTok(text,nV){
+  var toks=text.match(PRE)||[],wc=Object.create(null),cc=Object.create(null),i,j;
+  toks.forEach(function(w){if(SP.indexOf(w)<0)wc[w]=(wc[w]||0)+1});
+  var ws=Object.keys(wc).sort(function(a,b){return wc[b]-wc[a]}).slice(0,20000);
+  ws.forEach(function(w){for(var j=0;j<w.length;j++)cc[w[j]]=(cc[w[j]]||0)+wc[w]});
+  var chars=[];for(i=32;i<127;i++)chars.push(String.fromCharCode(i));chars.push('\n','\t');
+  Object.keys(cc).sort(function(a,b){return cc[b]-cc[a]}).forEach(function(c){if(chars.length<160&&chars.indexOf(c)<0)chars.push(c)});
+  var vocab=SP.concat(chars),nBase=vocab.length,id=Object.create(null);chars.forEach(function(c,i){id[c]=NS+i});
+  var W=ws.map(function(w){var s=[];for(var j=0;j<w.length;j++)s.push(id[w[j]]!==undefined?id[w[j]]:-1);return{s:s,c:wc[w]}}),merges=[];
+  while(vocab.length<nV){var pc=new Map();
+    W.forEach(function(w){for(var j=0;j<w.s.length-1;j++){if(w.s[j]<0||w.s[j+1]<0)continue;var k=w.s[j]*4096+w.s[j+1];pc.set(k,(pc.get(k)||0)+w.c)}});
+    var best=-1,bc=1;pc.forEach(function(v,k){if(v>bc){bc=v;best=k}});if(best<0)break;
+    var a=Math.floor(best/4096),b=best%4096,nid=vocab.length;vocab.push(vocab[a]+vocab[b]);merges.push([a,b]);
+    W.forEach(function(w){var s=w.s,o=[],j=0;while(j<s.length){if(j<s.length-1&&s[j]===a&&s[j+1]===b){o.push(nid);j+=2}else o.push(s[j++])}w.s=o})}
+  return mkTok(vocab,nBase,merges)}
+function encWord(tk,w){var c=tk.cache[w];if(c)return c;var out=[],run=[],j;
+  function flush(){var s=run,k;run=[];
+    while(s.length>1){var best=1e9,bi=-1;for(k=0;k<s.length-1;k++){var r=tk.rank.get(s[k]*4096+s[k+1]);if(r!==undefined&&r<best){best=r;bi=k}}if(bi<0)break;s.splice(bi,2,best)}
+    for(k=0;k<s.length;k++)out.push(s[k])}
+  for(j=0;j<w.length;j++){var x=tk.cmap[w[j]];
+    if(x!==undefined)run.push(x);
+    else{flush();out.push(3);var h=('0000'+w.charCodeAt(j).toString(16)).slice(-4);for(var q=0;q<4;q++)out.push(tk.cmap[h[q]])}}
+  flush();tk.cache[w]=out;return out}
+function enc(tk,text){var out=[],m=text.match(PRE)||[];
+  for(var i=0;i<m.length;i++){var si=SP.indexOf(m[i]);if(si>=0&&si<3)out.push(si);else{var w=encWord(tk,m[i]);for(var j=0;j<w.length;j++)out.push(w[j])}}return out}
+function dec(tk,ids){var s='';for(var i=0;i<ids.length;i++){var t=ids[i];
+  if(t===3){var h='',k;for(k=1;k<=4&&i+k<ids.length;k++){var v=tk.vocab[ids[i+k]];if(v&&v.length===1&&HEX.indexOf(v)>=0)h+=v;else break}
+    if(h.length===4){s+=String.fromCharCode(parseInt(h,16));i+=4}continue}
+  s+=tk.vocab[t]||''}return s}
+/* answer mask: 1 where the target token belongs to an answer (after <|a|> up to and including <|end|>) */
+function maskOf(ids){var m=new Int8Array(ids.length),on=false,plain=true,i;
+  for(i=0;i<ids.length;i++)if(ids[i]===1){plain=false;break}
+  if(plain){m.fill(1);return m}
+  for(i=0;i<ids.length;i++){if(on){m[i]=1;if(ids[i]===2)on=false}else if(ids[i]===1)on=true}return m}
+/* model */
+function Model(c,lite){
+  var d=c.d,f=c.f,s=1/Math.sqrt(d),hd=d/c.H,hf=hd/2,l,t,i;this.c=c;this.p={E:mk(c.V*d,.02)};this.sh={E:[c.V,d]};
+  for(l=0;l<c.L;l++){var o=this.p,h=this.sh;
+    o['q'+l]=mk(d*d,s);o['k'+l]=mk(d*d,s);o['v'+l]=mk(d*d,s);o['o'+l]=mk(d*d,s/Math.sqrt(2*c.L));
+    o['a'+l]=mk(d*f,s);o['g'+l]=mk(d*f,s);o['b'+l]=mk(f*d,1/Math.sqrt(f)/Math.sqrt(2*c.L));
+    h['q'+l]=h['k'+l]=h['v'+l]=h['o'+l]=[d,d];h['a'+l]=h['g'+l]=[d,f];h['b'+l]=[f,d]}
+  this.rc=new F(c.T*hf);this.rs=new F(c.T*hf);
+  for(t=0;t<c.T;t++)for(i=0;i<hf;i++){var th=t*Math.pow(10000,-2*i/hd);this.rc[t*hf+i]=Math.cos(th);this.rs[t*hf+i]=Math.sin(th)}
+  this.g={};this.mo={};this.v={};for(var k in this.p){this.g[k]=new F(this.p[k].length);if(!lite){this.mo[k]=new F(this.p[k].length);this.v[k]=new F(this.p[k].length)}}
+}
+Model.prototype.count=function(){var n=0;for(var k in this.p)n+=this.p[k].length;return n};
+function mm(X,W,Y,T,m,n){for(var t=0;t<T;t++)for(var i=0;i<m;i++){var x=X[t*m+i];if(x===0)continue;var wi=i*n,yi=t*n;for(var j=0;j<n;j++)Y[yi+j]+=x*W[wi+j]}}
+function mmB(dY,X,W,dX,dW,T,m,n){for(var t=0;t<T;t++)for(var i=0;i<m;i++){var x=X[t*m+i],s=0,wi=i*n,yi=t*n;for(var j=0;j<n;j++){var g=dY[yi+j];dW[wi+j]+=x*g;s+=g*W[wi+j]}dX[t*m+i]+=s}}
+function rms(x,y,r,T,d){for(var t=0;t<T;t++){var s=0,b=t*d;for(var i=0;i<d;i++)s+=x[b+i]*x[b+i];var q=1/Math.sqrt(s/d+1e-5);r[t]=q;for(i=0;i<d;i++)y[b+i]=x[b+i]*q}}
+function rmsb(dy,y,r,dx,T,d){for(var t=0;t<T;t++){var s=0,b=t*d;for(var i=0;i<d;i++)s+=dy[b+i]*y[b+i];s/=d;for(i=0;i<d;i++)dx[b+i]+=(dy[b+i]-y[b+i]*s)*r[t]}}
+function rope(x,n,H,hd,rc,rs,sg){var hf=hd/2,d=H*hd;for(var t=0;t<n;t++)for(var h=0;h<H;h++)for(var i=0;i<hf;i++){var o=t*d+h*hd+2*i,c=rc[t*hf+i],s=sg*rs[t*hf+i],a=x[o],b=x[o+1];x[o]=a*c-b*s;x[o+1]=a*s+b*c}}
+function fwd(m,ids,n){
+  var c=m.c,d=c.d,f=c.f,V=c.V,H=c.H,L=c.L,hd=d/H,p=m.p,sc=1/Math.sqrt(hd),C={n:n,ids:ids,ly:[]},t,i,l,h,s;
+  var x=new F(n*d);for(t=0;t<n;t++)for(i=0;i<d;i++)x[t*d+i]=p.E[ids[t]*d+i];
+  for(l=0;l<L;l++){
+    var y={h:new F(n*d),r1:new F(n),q:new F(n*d),k:new F(n*d),v:new F(n*d),P:new F(H*n*n),ao:new F(n*d),o:new F(n*d),x1:new F(n*d),h2:new F(n*d),r2:new F(n),u1:new F(n*f),u2:new F(n*f),sg:new F(n*f),ac:new F(n*f),mo:new F(n*d),x2:new F(n*d)};
+    rms(x,y.h,y.r1,n,d);mm(y.h,p['q'+l],y.q,n,d,d);mm(y.h,p['k'+l],y.k,n,d,d);mm(y.h,p['v'+l],y.v,n,d,d);
+    rope(y.q,n,H,hd,m.rc,m.rs,1);rope(y.k,n,H,hd,m.rc,m.rs,1);
+    for(h=0;h<H;h++)for(t=0;t<n;t++){
+      var base=(h*n+t)*n,mx=-1e30,sm=0,ho=h*hd;
+      for(s=0;s<=t;s++){var dt=0;for(i=0;i<hd;i++)dt+=y.q[t*d+ho+i]*y.k[s*d+ho+i];dt*=sc;y.P[base+s]=dt;if(dt>mx)mx=dt}
+      for(s=0;s<=t;s++){var e=Math.exp(y.P[base+s]-mx);y.P[base+s]=e;sm+=e}
+      for(s=0;s<=t;s++){var w=y.P[base+s]/sm;y.P[base+s]=w;for(i=0;i<hd;i++)y.ao[t*d+ho+i]+=w*y.v[s*d+ho+i]}
+    }
+    mm(y.ao,p['o'+l],y.o,n,d,d);for(i=0;i<n*d;i++)y.x1[i]=x[i]+y.o[i];
+    rms(y.x1,y.h2,y.r2,n,d);mm(y.h2,p['a'+l],y.u1,n,d,f);mm(y.h2,p['g'+l],y.u2,n,d,f);
+    for(i=0;i<n*f;i++){var sg=1/(1+Math.exp(-y.u1[i]));y.sg[i]=sg;y.ac[i]=y.u1[i]*sg*y.u2[i]}
+    mm(y.ac,p['b'+l],y.mo,n,f,d);for(i=0;i<n*d;i++)y.x2[i]=y.x1[i]+y.mo[i];
+    C.ly.push(y);x=y.x2;
+  }
+  C.xf=new F(n*d);C.rf=new F(n);rms(x,C.xf,C.rf,n,d);
+  C.lg=new F(n*V);for(t=0;t<n;t++)for(var j=0;j<V;j++){var z=0;for(i=0;i<d;i++)z+=C.xf[t*d+i]*p.E[j*d+i];C.lg[t*V+j]=z}
+  return C;
+}
+function bwd(m,C,tg,scale){
+  var c=m.c,d=c.d,f=c.f,V=c.V,H=c.H,L=c.L,hd=d/H,p=m.p,g=m.g,n=C.n,sc=1/Math.sqrt(hd),loss=0,cnt=0,t,i,j,l,h,s;
+  var dxf=new F(n*d);
+  for(t=0;t<n;t++){if(tg[t]<0)continue;cnt++;var mx=-1e30,sm=0,b=t*V;for(j=0;j<V;j++)if(C.lg[b+j]>mx)mx=C.lg[b+j];
+    for(j=0;j<V;j++){var e=Math.exp(C.lg[b+j]-mx);C.lg[b+j]=e;sm+=e}
+    for(j=0;j<V;j++)C.lg[b+j]/=sm;loss-=Math.log(C.lg[b+tg[t]]+1e-12);C.lg[b+tg[t]]-=1;
+    for(j=0;j<V;j++){var gg=C.lg[b+j]*scale;if(gg===0)continue;for(i=0;i<d;i++){dxf[t*d+i]+=gg*p.E[j*d+i];g.E[j*d+i]+=gg*C.xf[t*d+i]}}}
+  var dx=new F(n*d);rmsb(dxf,C.xf,C.rf,dx,n,d);
+  for(l=L-1;l>=0;l--){
+    var y=C.ly[l],dx1=dx.slice(),dac=new F(n*f),du1=new F(n*f),du2=new F(n*f),dh2=new F(n*d);
+    mmB(dx,y.ac,p['b'+l],dac,g['b'+l],n,f,d);
+    for(i=0;i<n*f;i++){var sg=y.sg[i],u=y.u1[i];du2[i]=dac[i]*u*sg;du1[i]=dac[i]*y.u2[i]*sg*(1+u*(1-sg))}
+    mmB(du1,y.h2,p['a'+l],dh2,g['a'+l],n,d,f);mmB(du2,y.h2,p['g'+l],dh2,g['g'+l],n,d,f);rmsb(dh2,y.h2,y.r2,dx1,n,d);
+    var dxx=dx1.slice(),dao=new F(n*d),dq=new F(n*d),dk=new F(n*d),dv=new F(n*d),dP=new F(n);
+    mmB(dx1,y.ao,p['o'+l],dao,g['o'+l],n,d,d);
+    for(h=0;h<H;h++)for(t=0;t<n;t++){
+      var base=(h*n+t)*n,ho=h*hd,dot=0;
+      for(s=0;s<=t;s++){var a=0;for(i=0;i<hd;i++){a+=dao[t*d+ho+i]*y.v[s*d+ho+i];dv[s*d+ho+i]+=y.P[base+s]*dao[t*d+ho+i]}dP[s]=a;dot+=a*y.P[base+s]}
+      for(s=0;s<=t;s++){var ds=y.P[base+s]*(dP[s]-dot)*sc;for(i=0;i<hd;i++){dq[t*d+ho+i]+=ds*y.k[s*d+ho+i];dk[s*d+ho+i]+=ds*y.q[t*d+ho+i]}}
+    }
+    rope(dq,n,H,hd,m.rc,m.rs,-1);rope(dk,n,H,hd,m.rc,m.rs,-1);
+    var dh=new F(n*d);mmB(dq,y.h,p['q'+l],dh,g['q'+l],n,d,d);mmB(dk,y.h,p['k'+l],dh,g['k'+l],n,d,d);mmB(dv,y.h,p['v'+l],dh,g['v'+l],n,d,d);
+    rmsb(dh,y.h,y.r1,dxx,n,d);dx=dxx;
+  }
+  for(t=0;t<n;t++)for(i=0;i<d;i++)g.E[C.ids[t]*d+i]+=dx[t*d+i];
+  return loss/Math.max(cnt,1);
+}
+function step(m,o){var k,i,gn=0;
+  for(k in m.g){var g=m.g[k];for(i=0;i<g.length;i++)gn+=g[i]*g[i]}
+  gn=Math.sqrt(gn);var cl=gn>1?1/gn:1;o.t++;var b1=.9,b2=.95,bc1=1-Math.pow(b1,o.t),bc2=1-Math.pow(b2,o.t);
+  for(k in m.p){var w=m.p[k],g=m.g[k],mo=m.mo[k],v=m.v[k];
+    for(i=0;i<g.length;i++){var gi=g[i]*cl;mo[i]=b1*mo[i]+(1-b1)*gi;v[i]=b2*v[i]+(1-b2)*gi*gi;
+      w[i]=w[i]*(1-o.lr*o.wd)-o.lr*(mo[i]/bc1)/(Math.sqrt(v[i]/bc2)+1e-8)}
+    g.fill(0)}}
+function vm(x,W,y,m,n){var i,j;for(j=0;j<n;j++)y[j]=0;for(i=0;i<m;i++){var xi=x[i];if(xi===0)continue;var wi=i*n;for(j=0;j<n;j++)y[j]+=xi*W[wi+j]}}
+function newCache(m){var c=m.c,K=[],Vv=[];for(var l=0;l<c.L;l++){K.push(new F(c.T*c.d));Vv.push(new F(c.T*c.d))}return{n:0,K:K,V:Vv}}
+/* cached forward: feeds tokens one at a time, reusing every earlier key and value. Returns the logits of the last token fed. */
+function feed(m,kc,ids){
+  var c=m.c,d=c.d,f=c.f,V=c.V,H=c.H,L=c.L,hd=d/H,hf=hd/2,p=m.p,sc=1/Math.sqrt(hd),
+    x=new F(d),h=new F(d),q=new F(d),k=new F(d),v=new F(d),ao=new F(d),o=new F(d),h2=new F(d),u1=new F(f),u2=new F(f),ac=new F(f),mo=new F(d),pr=new F(c.T),r=new F(1),lg=null,z,i,l,hh,s;
+  for(z=0;z<ids.length;z++){var pos=kc.n,id=ids[z];
+    if(pos>=c.T)throw new Error('context full');
+    for(i=0;i<d;i++)x[i]=p.E[id*d+i];
+    for(l=0;l<L;l++){
+      rms(x,h,r,1,d);vm(h,p['q'+l],q,d,d);vm(h,p['k'+l],k,d,d);vm(h,p['v'+l],v,d,d);
+      for(hh=0;hh<H;hh++)for(i=0;i<hf;i++){var o2=hh*hd+2*i,cc=m.rc[pos*hf+i],ss=m.rs[pos*hf+i],a=q[o2],b=q[o2+1];q[o2]=a*cc-b*ss;q[o2+1]=a*ss+b*cc;a=k[o2];b=k[o2+1];k[o2]=a*cc-b*ss;k[o2+1]=a*ss+b*cc}
+      kc.K[l].set(k,pos*d);kc.V[l].set(v,pos*d);
+      var K=kc.K[l],VV=kc.V[l];ao.fill(0);
+      for(hh=0;hh<H;hh++){var ho=hh*hd,mx=-1e30,sm=0;
+        for(s=0;s<=pos;s++){var dt=0;for(i=0;i<hd;i++)dt+=q[ho+i]*K[s*d+ho+i];dt*=sc;pr[s]=dt;if(dt>mx)mx=dt}
+        for(s=0;s<=pos;s++){var e=Math.exp(pr[s]-mx);pr[s]=e;sm+=e}
+        for(s=0;s<=pos;s++){var w=pr[s]/sm;for(i=0;i<hd;i++)ao[ho+i]+=w*VV[s*d+ho+i]}}
+      vm(ao,p['o'+l],o,d,d);for(i=0;i<d;i++)x[i]+=o[i];
+      rms(x,h2,r,1,d);vm(h2,p['a'+l],u1,d,f);vm(h2,p['g'+l],u2,d,f);
+      for(i=0;i<f;i++)ac[i]=u1[i]/(1+Math.exp(-u1[i]))*u2[i];
+      vm(ac,p['b'+l],mo,f,d);for(i=0;i<d;i++)x[i]+=mo[i]}
+    kc.n++;
+    if(z===ids.length-1){rms(x,h,r,1,d);lg=new F(V);for(var j=0;j<V;j++){var zz=0;for(i=0;i<d;i++)zz+=h[i]*p.E[j*d+i];lg[j]=zz}}}
+  return lg}
+function sample(lg,temp,topk){var V=lg.length,pr=[],j;
+  for(j=0;j<V;j++)pr.push([j,lg[j]]);pr.sort(function(x,y){return y[1]-x[1]});pr=pr.slice(0,topk);
+  var mx=pr[0][1],sm=0;for(j=0;j<pr.length;j++){pr[j][1]=Math.exp((pr[j][1]-mx)/Math.max(temp,.05));sm+=pr[j][1]}
+  var r=Math.random()*sm,pick=pr[0][0];for(j=0;j<pr.length;j++){r-=pr[j][1];if(r<=0){pick=pr[j][0];break}}
+  return pick}
+/* a session keeps the cache and every token so far, so chat history costs nothing to keep */
+function session(m,ids){return{kc:newCache(m),a:(ids||[]).slice(),f:0}}
+function reset(S){S.kc.n=0;S.a=[];S.f=0}
+function push(S,ids){for(var i=0;i<ids.length;i++)S.a.push(ids[i])}
+function next(m,S,temp,topk,lim){var T=Math.min(m.c.T,lim||m.c.T),p=S.a.slice(S.f);
+  if(S.kc.n+p.length>T){var k=Math.min(S.a.length,Math.floor(T*.75));S.kc.n=0;S.f=S.a.length-k;p=S.a.slice(S.f)}
+  var lg=feed(m,S.kc,p);S.f=S.a.length;return sample(lg,temp,topk)}
+function gen(m,ids,nNew,temp,topk,stop){var S=session(m,ids),out=[];
+  for(var q=0;q<nNew;q++){var t=next(m,S,temp,topk);push(S,[t]);out.push(t);if(stop&&stop(out))break}return out}
+/* one training batch: gradients are accumulated, loss counts answer tokens only, windows are sometimes 4x longer */
+function batch(m,seqs,masks,qs,B,TW){var ls=0,used=0;
+  for(var q=0;q<B;q++){var si=Math.floor(Math.random()*seqs.length),s=seqs[si],mk2=masks[si],st=qs[si],a,t;
+    var len=Math.min(Math.random()<.1?TW*4:TW,s.length-1);
+    if(st.length&&Math.random()<.7){a=st[Math.floor(Math.random()*st.length)];if(a+len+1>s.length)a=s.length-len-1}
+    else a=Math.floor(Math.random()*(s.length-len));
+    var tg=new Int16Array(len),cnt=0;for(t=0;t<len;t++){var j=a+t+1;if(mk2[j]){tg[t]=s[j];cnt++}else tg[t]=-1}
+    if(!cnt)continue;
+    var C=fwd(m,s.slice(a,a+len),len);ls+=bwd(m,C,tg,1/(cnt*B));used++}
+  return used?ls/used:0}
+/* file format */
+var crcT=null;
+function crc(u,e){if(!crcT){crcT=[];for(var n=0;n<256;n++){var c=n;for(var k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;crcT[n]=c>>>0}}
+  var c2=0xFFFFFFFF;for(var i=0;i<e;i++)c2=crcT[(c2^u[i])&255]^(c2>>>8);return(c2^0xFFFFFFFF)>>>0}
+function tsize(c){return 4*V0(c)+c.V*c.d+c.L*(4*(4*c.d+c.d*c.d)+2*(4*c.d+c.d*c.f)+(4*c.f+c.f*c.d))}
+function V0(c){return c.V}
+function flat(o,c){var nm=names(c),n=0,i;for(i=0;i<nm.length;i++)n+=o[nm[i]].length;var f=new F(n),p=0;for(i=0;i<nm.length;i++){f.set(o[nm[i]],p);p+=o[nm[i]].length}return f}
+function unflat(o,c,f){var nm=names(c),p=0;for(var i=0;i<nm.length;i++){var a=o[nm[i]];a.set(f.subarray(p,p+a.length));p+=a.length}}
+function pack(m,tk,flags,meta){
+  var c=m.c,nm=names(c),size=4+2+14+5+4,i,o=0;
+  for(i=0;i<tk.nBase;i++)size+=1+2*tk.vocab[i].length;size+=4*tk.merges.length;
+  nm.forEach(function(n){size+=m.sh[n][0]*4+m.p[n].length});
+  var buf=new ArrayBuffer(size),dv=new DataView(buf),u=new Uint8Array(buf);
+  'MICA'.split('').forEach(function(ch){u[o++]=ch.charCodeAt(0)});u[o++]=4;u[o++]=flags||0;
+  [c.V,c.d,c.L,c.H,c.f,c.T,tk.nBase].forEach(function(x){dv.setUint16(o,x);o+=2});
+  for(i=0;i<tk.nBase;i++){var sv=tk.vocab[i];u[o++]=sv.length;for(var j=0;j<sv.length;j++){dv.setUint16(o,sv.charCodeAt(j));o+=2}}
+  tk.merges.forEach(function(mg){dv.setUint16(o,mg[0]);dv.setUint16(o+2,mg[1]);o+=4});
+  nm.forEach(function(n){var w=m.p[n],rows=m.sh[n][0],cols=w.length/rows;
+    for(var r=0;r<rows;r++){var mx=1e-9;for(i=0;i<cols;i++)mx=Math.max(mx,Math.abs(w[r*cols+i]));var s=mx/127;dv.setFloat32(o,s);o+=4;
+      for(i=0;i<cols;i++)dv.setInt8(o++,Math.round(w[r*cols+i]/s))}});
+  u[o++]=(meta&&meta.data)||0;dv.setUint32(o,Math.min((meta&&meta.steps)||0,4294967295));o+=4;
+  dv.setUint32(o,crc(u,o));return u}
+function unpack(u){
+  if(u.length<40||String.fromCharCode(u[0],u[1],u[2],u[3])!=='MICA')throw new Error('Not a Mica model file');
+  if(u[4]!==4)throw new Error('This model is from an older version. Please retrain it.');
+  var dv=new DataView(u.buffer,u.byteOffset,u.byteLength),o=6,i,flags=u[5];
+  if(crc(u,u.length-4)!==dv.getUint32(u.length-4))throw new Error('Model file is damaged');
+  var q=[];for(i=0;i<7;i++){q.push(dv.getUint16(o));o+=2}
+  var c={V:q[0],d:q[1],L:q[2],H:q[3],f:q[4],T:q[5]},nB=q[6];
+  if(c.V<8||c.V>1024||nB<8||nB>c.V||c.d<8||c.d>256||c.L<1||c.L>12||c.H<1||c.H>16||c.d%c.H||(c.d/c.H)%2||c.f<8||c.f>1024||c.T<8||c.T>16384)throw new Error('Unsupported model size');
+  var vocab=[];
+  for(i=0;i<nB;i++){var ln=u[o++];if(ln<1||ln>8||o+2*ln>u.length)throw new Error('Model file is damaged');var sv='';for(var j=0;j<ln;j++){sv+=String.fromCharCode(dv.getUint16(o));o+=2}vocab.push(sv)}
+  if(o+4*(c.V-nB)>u.length)throw new Error('Model file is damaged');
+  var merges=[];for(i=nB;i<c.V;i++){var a=dv.getUint16(o),b=dv.getUint16(o+2);o+=4;if(a>=vocab.length||b>=vocab.length)throw new Error('Model file is damaged');merges.push([a,b]);vocab.push(vocab[a]+vocab[b])}
+  var rem=u.length-4-o-tsize(c);if(rem!==0&&rem!==5)throw new Error('Model file is damaged');
+  var m=new Model(c);
+  names(c).forEach(function(n){var w=m.p[n],rows=m.sh[n][0],cols=w.length/rows;
+    for(var r=0;r<rows;r++){var s=dv.getFloat32(o);o+=4;if(!isFinite(s))throw new Error('Model file is damaged');for(i=0;i<cols;i++)w[r*cols+i]=dv.getInt8(o++)*s}});
+  var data=0,steps=0;if(rem===5){data=u[o];steps=dv.getUint32(o+1)}
+  return{m:m,tk:mkTok(vocab,nB,merges),flags:flags,data:data,steps:steps}}
+return{Model:Model,fwd:fwd,bwd:bwd,step:step,gen:gen,batch:batch,maskOf:maskOf,feed:feed,newCache:newCache,session:session,reset:reset,push:push,next:next,sample:sample,pack:pack,unpack:unpack,flat:flat,unflat:unflat,names:names,trainTok:trainTok,enc:enc,dec:dec};
+})();
+
+
+</script>
+<script>
+(function(){
+var $=function(s){return document.querySelector(s)},$$=function(s){return [].slice.call(document.querySelectorAll(s))};
+var CORES=navigator.hardwareConcurrency||0,ts=null,pool=null,pauseReq=false,forceNew=false,trainedSteps=0,trainedData=0,curNW=1,unl=false,wl=null,model=null,tok=null,chatMode=false,lastLoss=null,mLvl=0,rAware=false,rg=0,lastUi=1,knowsApp=false,compatOff=false,training=false,generating=false,tab='chat';
+var PAL=[[.17,.14,.78],[.30,.42,.97],[.58,.25,.85],[.92,.30,.62],[.97,.38,.30],[.99,.68,.30],[.84,.66,.98]], N=7, cx=[], cy=[];
+  var still=false;
+  var T=0, Tb=0, last=0, lastPrev=0, cOn=false, tOn=false;
+  function mk(cls){ var c=document.createElement('canvas'); c.className=cls; c.setAttribute('aria-hidden','true'); return c; }
+  function paint(cv,w,h,t,off,cell,dk){cell=cell*(window.LOW||1);
+    var cw=Math.max(6,Math.round(w/cell)), ch=Math.max(6,Math.round(h/cell)), g=cv.getContext('2d');
+    if(cv.width!==cw||cv.height!==ch){ cv.width=cw; cv.height=ch; cv._d=g.createImageData(cw,ch); var sd=(cw*73856093^ch*19349663)>>>0, nn=new Float32Array(cw*ch); for(var q=0;q<nn.length;q++){ sd=(sd*1664525+1013904223)>>>0; nn[q]=sd/4294967296-.5; } cv._n=nn; }
+    var kk=dk||1, a=w/h, kx=a>2.2?a/2.2:1, d=cv._d.data, nz=cv._n, j0=0, i=0, k, x, y;
+    for(k=0;k<N;k++){ cx[k]=.42*Math.sin(t*(.9+.27*k)+k*2.1+off*1.7); cy[k]=.42*Math.cos(t*(.8+.31*k)+k*1.3+off*2.3); }
+    for(y=0;y<ch;y++){ var v=(y+.5)/ch-.5;
+      for(x=0;x<cw;x++){ var u=(x+.5)/cw-.5, sw=0, mx=0, r=0, gg=0, b=0;
+        for(k=0;k<N;k++){ var dx=(u-cx[k])*kx, dy=v-cy[k], q=dx*dx+dy*dy+.05, w2=1/(q*q), c=PAL[(k+off)%N];
+          sw+=w2; if(w2>mx) mx=w2; r+=w2*c[0]; gg+=w2*c[1]; b+=w2*c[2]; }
+        var n=nz[j0++]*.12*(1-mx/sw);
+        d[i++]=(r/sw+n)*255*kk; d[i++]=(gg/sw+n)*255*kk; d[i++]=(b/sw+n)*255*kk; d[i++]=255; } }
+    g.putImageData(cv._d,0,0);
+  }
+  
+function liveNow(){return training||generating}
+var launchEl=$('#launch'),bgCv=mk('lqbg');launchEl.insertBefore(bgCv,launchEl.firstChild);
+function vis(h){if(!h.getClientRects().length)return false;var r=h.getBoundingClientRect();if(r.bottom<-40||r.top>innerHeight+40)return false;var S=h.closest('.sheet');if(S&&!S.classList.contains('open'))return false;var L=h.closest('#launch');return !L||!L.classList.contains('hide')}
+function chk(h){return vis(h)&&h.previousElementSibling&&h.previousElementSibling.checked}
+var HOSTS=[
+ {s:'.btn.primary',cell:5.5,spd:.224,on:function(h){return vis(h)&&(!h.disabled||h.classList.contains('busy'))}},
+ {s:'.l-main',cell:7,spd:.224,on:vis},{s:'.l-card:not(.l-main) .l-ic',cell:4,spd:.224,on:vis},
+ {s:'.bar i',cell:2,on:vis},{s:'.nav-ind',cell:5.5,spd:.224,on:vis},{s:'.seg input+span',cell:4,spd:.224,on:chk},
+ {s:'.msg.u',cell:5,spd:.2,on:vis},{s:'.msg.a.busy',cell:4,spd:.3,on:vis},
+ {s:'.plot',cell:4,spd:.2,on:function(h){return vis(h)&&training}}];
+var lastTxt=0;
+function liquidTick(now){requestAnimationFrame(liquidTick);
+  if(document.hidden)return;
+  var dt=Math.min(.1,(now-last)/1000);last=now;if(!still)T+=dt;
+  var i,h,cv,n=0;
+  for(var hi=0;hi<HOSTS.length;hi++){var H=HOSTS[hi],hs=document.querySelectorAll(H.s);
+    for(i=0;i<hs.length;i++){h=hs[i];n++;cv=h._lq;
+      if(!cv){cv=mk('lqbtn');h._lq=cv;h.classList.add('lq-host');if(getComputedStyle(h).position==='static')h.style.position='relative'}
+      if(h.firstChild!==cv)h.insertBefore(cv,h.firstChild);
+      var on=H.on(h);cv.style.display=on?'block':'none';
+      if(on)paint(cv,h.clientWidth,h.clientHeight,T*(H.spd||.16)+n*7.3,n,H.cell)}}
+  if(now-lastTxt>120){lastTxt=now;var ts=$$('.brand');
+    for(i=0;i<ts.length;i++){h=ts[i];if(!vis(h))continue;cv=h._lq;if(!cv){cv=document.createElement('canvas');h._lq=cv}
+      paint(cv,h.offsetWidth,h.offsetHeight,T*.16+i*5.1,i+2,6,.74);h.style.backgroundImage='url('+cv.toDataURL()+')'}
+    if(!launchEl.classList.contains('hide'))paint(bgCv,innerWidth,innerHeight,T*.12+5,4,14)}
+}
+requestAnimationFrame(liquidTick);
+
+/* shell */
+var TITLES={chat:['Chat',''],train:['Train','Teach it your text.'],model:['Model','Size, status and saving.']};
+function sub(){if(tab==='chat')$('#subtitle').textContent=model?'Replies are made on this device.':'Train or open a model to start.'}
+function setTab(t){tab=t;document.body.dataset.tab=t;['chat','train','model'].forEach(function(x){$('#tab-'+x).classList.toggle('on',x===t)});
+  $$('.tab').forEach(function(b){b.setAttribute('aria-selected',b.dataset.tab===t)});
+  $('.tabbar .in').dataset.i=['chat','train','model'].indexOf(t);$('#title').textContent=TITLES[t][0];$('#subtitle').textContent=TITLES[t][1];sub();
+  document.body.classList.toggle('onchat',t==='chat'&&!!model);window.scrollTo(0,0)}
+$$('.tab').forEach(function(b){b.onclick=function(){setTab(b.dataset.tab)}});
+var tt;function toast(m,err){var t=$('#toast');t.textContent=m;t.classList.toggle('err',!!err);t.classList.add('on');clearTimeout(tt);tt=setTimeout(function(){t.classList.remove('on')},2600)}
+function openSheet(){$('#scrim').classList.add('on');$('#adv').classList.add('open')}function closeSheet(){$('#scrim').classList.remove('on');$('#adv').classList.remove('open')}
+$('#btnAdv').onclick=openSheet;$('#advDone').onclick=closeSheet;document.addEventListener('keydown',function(e){if(e.key==='Escape'){var m=$('.dd-menu'),c=$('.dd-catch');if(m){m.remove();if(c)c.remove()}else closeSheet()}});$('#scrim').onclick=closeSheet;
+$('#lNew').onclick=function(){launchEl.classList.add('hide');setTab('train')};
+$('#lOpen').onclick=$('#eOpen').onclick=$('#mOpen').onclick=function(){$('#mfile').click()};
+$('#eTrain').onclick=function(){setTab('train')};
+
+/* custom dropdown (project style) */
+function mkdd(el,opts){var b=document.createElement('button');b.type='button';b.className='dd-btn';b.setAttribute('aria-haspopup','listbox');b.setAttribute('aria-expanded','false');
+  b.innerHTML='<span class="dd-val"></span><svg viewBox="0 0 10 14"><path d="M2 5l3-3 3 3M2 9l3 3 3-3"/></svg>';el.appendChild(b);
+  function lab(){return opts.filter(function(o){return o[0]===el.dataset.v})[0][1]}b.firstChild.textContent=lab();
+  b.onclick=function(){var r=b.getBoundingClientRect(),ct=document.createElement('div'),m=document.createElement('div');ct.className='dd-catch';m.className='dd-menu';m.setAttribute('role','listbox');
+    function cl(){ct.remove();m.remove();b.setAttribute('aria-expanded','false')}
+    opts.forEach(function(o){var d=document.createElement('div');d.className='dd-opt';d.setAttribute('role','option');d.tabIndex=0;d.setAttribute('aria-selected',o[0]===el.dataset.v);
+      d.innerHTML='<span class="dd-ck"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><span></span>';d.lastChild.textContent=o[1];
+      d.onclick=function(){el.dataset.v=o[0];b.firstChild.textContent=o[1];cl()};m.appendChild(d)});
+    ct.onclick=cl;document.body.appendChild(ct);document.body.appendChild(m);b.setAttribute('aria-expanded','true');
+    m.style.top=(r.bottom+6)+'px';m.style.left=Math.max(12,r.right-200)+'px';requestAnimationFrame(function(){m.classList.add('on')})}}
+
+
+/* data */
+function chunk(text,size){var w=text.match(/\S+\s*/g)||[],out=[],trimmed=0,i;
+  for(i=0;i<w.length;i+=size)out.push(w.slice(i,i+size));
+  if(out.length>1&&out[out.length-1].length<100){var t=out.pop(),l=out.pop().concat(t);if(l.length>size){trimmed=l.length-size;l=l.slice(0,size)}out.push(l)}
+  return{words:w.length,chunks:out.map(function(x){return x.join('')}),trimmed:trimmed}}
+function docEls(){return $$('#docs .ta')}
+function addDoc(v){var w=document.createElement('div'),x=document.createElement('button'),ta=document.createElement('textarea');w.style.cssText='position:relative;margin-top:10px';
+  ta.className='ta';ta.placeholder='Paste text here';ta.setAttribute('aria-label','Training text');ta.value=v||'';ta.oninput=upd;w.appendChild(ta);
+  x.type='button';x.className='icon-btn';x.setAttribute('aria-label','Remove this text');x.style.cssText='position:absolute;top:8px;right:8px;width:32px;height:32px;box-shadow:none;background:rgba(255,255,255,.9)';
+  x.innerHTML='<svg class="ic" style="width:18px;height:18px;transform:rotate(45deg)"><use href="#i-plus"/></svg>';
+  x.onclick=function(){w.remove();if(!docEls().length)addDoc();upd()};w.appendChild(x);$('#docs').appendChild(w);upd();return ta}
+function canResume(){return !!model&&trainedData>0&&!forceNew}
+function put(v){var e=docEls().filter(function(a){return !a.value.trim()})[0];if(e){e.value=v;upd()}else addDoc(v)}
+function upd(){var size=+$('#cs').value,r={words:0,chunks:[],trimmed:0};
+  docEls().forEach(function(a){var c=chunk(a.value,size);r.words+=c.words;r.trimmed+=c.trimmed;r.chunks=r.chunks.concat(c.chunks)});
+  $('#sW').textContent=r.words.toLocaleString();$('#sC').textContent=r.chunks.length;$('#sT').textContent=r.trimmed;var cu=r.words>=100&&sampleId()===0;$('#cust').hidden=!cu;$('#go').disabled=(training||(ts&&ts.paused)||canResume())?false:r.words<100;trainUI();return r}
+$('#cs').oninput=function(){$('#csv').textContent=this.value;upd()};function stepsUI(){var s=$('#stp'),at=+s.value>=+s.max,v=$('#stv');
+  if(at){if(!v.classList.contains('ultra')){v.classList.add('ultra');v.textContent='Unlimited';s.parentNode.classList.add('max');if(navigator.vibrate)try{navigator.vibrate(12)}catch(e){}}}
+  else{v.classList.remove('ultra');v.textContent=s.value;s.parentNode.classList.remove('max')}}
+$('#stp').oninput=stepsUI;$('#rl').oninput=function(){$('#rlv').textContent=this.value};$('#mem').oninput=function(){$('#memv').textContent=this.value};
+$('#addDoc').onclick=function(){addDoc().focus()};
+$('#clr').onclick=function(){$('#docs').innerHTML='';addDoc()};$('#pick').onclick=function(){$('#tfile').click()};
+$('#tfile').onchange=function(e){var fs=[].slice.call(e.target.files);e.target.value='';fs.forEach(function(f){if(f.size>5e6){toast(f.name+' is over 5 MB',true);return}f.text().then(put).catch(function(){toast('Could not read '+f.name,true)})})};
+function think(q,a,L){var t=q.toLowerCase(),m,x;
+  m=/<calc>([^<]*)<\/calc><res>([^<]*)<\/res>/.exec(a);
+  if(m){var e=m[1],Z=m[2],ps=[],ck='',n=/^(\d+)([+\-*\/])(\d+)$/.exec(e),pc=/^(\d+)\*(\d+)\/100$/.exec(e);
+    if(n){var A=+n[1],B=+n[3],o=n[2],tn=Math.floor(B/10)*10,on=B%10,ta=Math.floor(A/10)*10,oa=A%10;
+      if(o==='+'||o==='-'){var sg=o,X=o==='+'?A+tn:A-tn;if(tn&&on){ps.push(A+sg+tn+'='+X);ps.push(X+sg+on+'='+Z)}else ps.push(A+sg+B+'='+Z);ck='Check: '+Z+(o==='+'?'-':'+')+B+'='+A+'.'}
+      else if(o==='*'){if(A>=10){var P1=ta*B,P2=oa*B;if(oa){ps.push(ta+'*'+B+'='+P1);ps.push(oa+'*'+B+'='+P2);ps.push(P1+'+'+P2+'='+Z)}else ps.push(ta+'*'+B+'='+Z)}else ps.push(A+'*'+B+'='+Z);ck='Check: '+Z+'/'+B+'='+A+'.'}
+      else{ps.push(Z+'*'+B+'='+A+', so '+A+'/'+B+'='+Z);ck='Check: '+Z+'*'+B+'='+A+'.'}}
+    else if(pc){var P=+pc[1]*+pc[2];ps.push(pc[1]+'*'+pc[2]+'='+P);ps.push(P+'/100='+Z);ck='Check: '+Z+'*100/'+pc[2]+'='+pc[1]+'.'}
+    var h=e+'. Use the calculator.';return L===1?h:(ps.length?e+'. '+ps.join(', ')+'. Use the calculator.':h)+(L===3&&ck?' '+ck:'')}
+  if(/<time>/.test(a)&&/<date>/.test(a))return 'I need the date and the time. I do not know them. I will ask the calendar and the clock.';
+  if(/<time>/.test(a))return 'I need the current time. I do not know it. I will ask the clock.';
+  if(/<date>/.test(a))return 'I need today\u2019s date. I do not know it. I will ask the calendar.';
+  if(/^I cannot/.test(a)||/^I do not have|^I can.t/.test(a))return L===1?'This needs something I do not have. I will say so.':'This needs the internet or a device I do not have. I should say so plainly and offer what I can do: the time, the date, a calculation.';
+  x=/\b(python|javascript|html|css)\b/.exec(t);
+  if(x){var tk=t.replace(/^(write|give me|show me|make|create)\s+/,'').replace(/[?.!]+$/,'');if(tk.length>46)tk=tk.slice(0,46).replace(/\s\S*$/,'');
+    return L===1?'Language: '+x[1]+'.':'Language: '+x[1]+'. Task: '+tk+'. Keep it short.'+(L===3?' Check the syntax.':'')}
+  return ''}
+function Q(q,a){var th=rg?think(q,a,rg):'';return '<|q|>'+q+'<|a|>'+(th?'<think>'+th+'</think>':'')+a+'<|end|>\n'}
+function pairs(l,rep){var s='';for(var r=0;r<rep;r++)l.forEach(function(p){s+=Q(p[0],p[1])});return s}
+var BASIC=[['hi','Hi! How can I help you today?'],['hello','Hello! What can I do for you?'],['hey','Hey! What is on your mind?'],['good morning','Good morning! What are we working on today?'],['good night','Good night! Rest well.'],['how are you','I am doing well, thank you. How are you?'],['who are you','I am Mica, a very small chatbot that runs entirely on your device.'],['what is your name','My name is Mica.'],['who created you','Mica was made by Adarsh Binesh.'],['tell me about yourself','I am Mica, a tiny chatbot made by Adarsh Binesh. I run on your device and I was trained on the text you gave me.'],['are you chatgpt','No. I am Mica, a much smaller model that runs on your own device.'],['what is your purpose','To chat, answer simple questions and show how a small language model learns, all on your own device.'],['can you think','A little. For maths, tools and code I write short thoughts first, then answer. You can tap Thinking to read them.'],['who made you','Mica was made by Adarsh Binesh. You trained this copy yourself, on your own device.'],['what is mica','Mica is a tiny chatbot app that runs in your browser. You train it on your own text, chat with it, and save it as a .mica file.'],['who is adarsh binesh','Adarsh Binesh is the person who made Mica.'],['how do i train you','Open the Train tab, pick a sample or paste your own text, choose a size, and press Train. You can pause and continue any time.'],['how do i save you','Open the Model tab and press Save model. You get one .mica file that you can open again later.'],['what is a mica file','A .mica file holds one small trained model. Open it from the launch screen or the Model tab to chat with it again.'],['where do you run','I run fully inside this page, on your own device. Nothing is sent to a server.'],['what are basic work and agentic','They are three sizes you can train. Basic is the smallest and fastest, Work has more room for writing, and Agentic is the largest and best for tools and longer answers.'],['what is reasoning','Reasoning means I write my thoughts first, then give my answer. I show them in a Thinking line you can tap to open.'],['do you think before you answer','Only when the question needs it, like maths, tools or code. For simple chat I just reply.'],['how do i continue training','Open the Train tab and press Continue training. A model made from a built-in sample can pick up where it stopped.'],['can i pause you','Yes. Tap the pause button while I am replying, or pause training in the Train tab. Tap again to continue.'],['is my data private','Yes. Your text and chats stay on this device. Mica never sends anything to a server.'],['how big are you','I am tiny, about a million parameters at most. That is why I work best with short, simple requests.'],['what are you not good at','Long answers, hard facts and anything that needs the internet. I am small, so please check important things yourself.'],['how do i open a model','Press Open model on the first screen or in the Model tab, then choose a .mica file.'],['what can you do','I can chat, answer simple questions, help with short writing and code, and use a calculator, a clock and a calendar. I am small, so short requests work best.'],['are you an ai','Yes, I am an AI. I am a tiny language model, so I can make mistakes.'],['do you need internet','No. I run fully on this device and nothing is sent anywhere.'],['can you remember me','Only inside this chat. When you close the page, I forget it.'],['are you smart','I am small, so I know only what I was taught. I try to be honest about that.'],['are you always right','No. I am very small and can be wrong, so please double check important things.'],['what do you not know','I do not know recent news or personal details, and I know only a little about most topics.'],['how do you work','I read a lot of text and learned which words tend to come next. I use that to write a reply.'],['what is a language model','A language model predicts the next word in a text. I am a very small one.'],['what is ai','AI is software that learns patterns from data to do tasks like writing or recognising images.'],['what is the capital of india','The capital of India is New Delhi.'],['what is the capital of france','The capital of France is Paris.'],['what is the capital of japan','The capital of Japan is Tokyo.'],['what is the capital of kerala','The capital of Kerala is Thiruvananthapuram.'],['what is the sun','The sun is a star. It gives the earth light and heat.'],['what is water','Water is a clear liquid that all living things need.'],['what is the moon','The moon is a rock that travels around the earth.'],['what is the earth','The earth is the planet where we live.'],['what colour is the sky','The sky looks blue on a clear day because air scatters blue light the most.'],['how many days in a week','There are seven days in a week.'],['how many months in a year','There are twelve months in a year.'],['tell me a joke','Why did the computer go to the doctor? It had a virus.'],['tell me another joke','What do you call a sleeping bull? A bulldozer.'],['tell me something interesting','Honey never spoils. People have found edible honey in ancient tombs.'],['i am sad','I am sorry you feel sad. Do you want to tell me what happened?'],['i am happy','That is great to hear! What made your day good?'],['i am tired','Rest if you can. A short break and some water can help.'],['i am bored','Let us fix that. You could read, draw, take a walk, or I can tell you a joke.'],['i do not know what to do','Let us take it one step at a time. What is the first small thing you could try?'],['i do not understand','No problem. Tell me which part is unclear and I will explain it more simply.'],['can you help me','Yes. Tell me what you need and I will do my best.'],['what is your favourite colour','I do not see colours, but I like the idea of blue, like the sky.'],['can you speak malayalam','I mostly know English, because that is what I was trained on.'],['give me a tip for studying','Study a little every day, take short breaks, and test yourself instead of only rereading.'],['how can i stay healthy','Eat good food, drink water, sleep well and move your body every day.'],['thank you','You are welcome! Let me know if you need anything else.'],['thanks','Anytime! I am happy to help.'],['bye','Goodbye! Talk to you soon.']];
+var WORK=[['write a short email asking for a meeting','Subject: Meeting request\n\nHi,\n\nCould we meet for 15 minutes this week to discuss the project? Please tell me a time that suits you.\n\nThanks'],['write a polite reminder email','Subject: Friendly reminder\n\nHi,\n\nJust a quick reminder about the pending item. Could you send an update when you can?\n\nThank you'],['write an email apologising for a late reply','Subject: Sorry for the delay\n\nHi,\n\nSorry for the late reply. I have looked into this and will send the details today.\n\nThanks for your patience'],['write a thank you note to a teammate','Hi, thank you for your help on the project. Your work made a real difference, and I appreciate it.'],['write a message to my manager about being late','Hi, I will be about 15 minutes late today because of traffic. I will make up the time. Sorry for the trouble.'],['write an email asking for a deadline extension','Subject: Deadline request\n\nHi,\n\nCould I have two more days to finish this so that the quality stays high? I will share a draft tomorrow.\n\nThank you'],['rewrite this politely: send me the report now','Could you please send me the report when you get a chance?'],['make this shorter: i would like to request that you please provide me with the document','Please send me the document.'],['give me an agenda for a team meeting','1. Welcome and goals\n2. Updates from each person\n3. Blockers and decisions\n4. Next steps and owners'],['make a to do list for tomorrow','1. Reply to urgent messages\n2. Finish the main task\n3. Review progress\n4. Plan the next day'],['write a project plan','1. Define the goal\n2. List the tasks\n3. Assign owners and dates\n4. Review progress every week'],['how do i prioritise tasks','List everything, mark what is urgent and what is important, do the urgent and important items first, and schedule the rest.'],['how do i say no politely','Thank them, give a short reason, and offer an alternative. For example: Thanks for asking. I cannot take this on now, but I can help next week.'],['how do i write a good status update','Say what is done, what is next, and what is blocked. Keep it to three short lines.'],['how do i give feedback','Be specific, kind and brief. Say what worked, what to change, and how the change helps.'],['how do i prepare for an interview','Learn about the company, practise common questions, prepare two stories about your work, and ask one good question.'],['how do i stay focused','Turn off notifications, work in 25 minute blocks, and take a 5 minute break after each block.'],['how do i reply to a complaint','Thank them, apologise, say what you will do, and give a date.'],['how do i run a stand up','Keep it to 10 minutes. Each person says what they did, what they will do, and what blocks them.'],['how do i write a bug report','Give a short title, the steps to reproduce, what you expected, what happened, and your device or browser.'],['how do i name my files','Use short clear names with a date, like report-2026-11-04.'],['how do i start a presentation','Begin with the problem, say what you will cover, then give your main point in one sentence.'],['what is a kpi','A KPI is a number you track to see whether you are reaching a goal.'],['what is agile','Agile is a way of working in short cycles, getting feedback often and improving as you go.'],['what is a deadline','A deadline is the date and time by which something must be finished.'],['what is a stakeholder','A stakeholder is anyone who is affected by a project or has a say in it.']];
+var CODE=[['write hello world in python','print("Hello, world!")'],['python function to add two numbers','def add(a, b):\n    return a + b'],['python loop from 1 to 5','for i in range(1, 6):\n    print(i)'],['reverse a string in python','def reverse(s):\n    return s[::-1]'],['check if a number is even in python','def is_even(n):\n    return n % 2 == 0'],['python list of squares','squares = [x * x for x in range(10)]'],['python factorial function','def factorial(n):\n    if n <= 1:\n        return 1\n    return n * factorial(n - 1)'],['python find the biggest number in a list','numbers = [3, 7, 2]\nprint(max(numbers))'],['python fizzbuzz','for i in range(1, 16):\n    if i % 15 == 0:\n        print("FizzBuzz")\n    elif i % 3 == 0:\n        print("Fizz")\n    elif i % 5 == 0:\n        print("Buzz")\n    else:\n        print(i)'],['python read a file','with open("notes.txt") as f:\n    text = f.read()'],['python dictionary example','person = {"name": "Asha", "age": 20}\nprint(person["name"])'],['hello world in javascript','console.log("Hello, world!");'],['javascript function to add two numbers','function add(a, b) {\n  return a + b;\n}'],['javascript loop from 1 to 5','for (let i = 1; i <= 5; i++) {\n  console.log(i);\n}'],['javascript array of squares','const squares = [1, 2, 3].map((x) => x * x);'],['javascript if else','if (age >= 18) {\n  console.log("Adult");\n} else {\n  console.log("Minor");\n}'],['html button','<button>Click me</button>'],['html heading','<h1>Hello</h1>'],['html link','<a href="https://example.com">Visit</a>'],['css center a div','.box {\n  display: flex;\n  justify-content: center;\n  align-items: center;\n}'],['what is a variable','A variable is a name that stores a value.'],['what is a function','A function is a block of code you can run again and again.'],['what is a loop','A loop repeats code many times.'],['what is an array','An array is a list of values in order.'],['what is python','Python is a popular programming language that is easy to read.'],['what is html','HTML is the language that describes the structure of a web page.'],['what is a bug','A bug is a mistake in a program that makes it behave wrongly.']];
+var AGENT=[['what is the weather today','I cannot check the weather because I have no internet. I can tell you the time or the date, or do a calculation.'],['search the web for python tutorials','I cannot browse the web, because I run only on this device. I can explain the basics of Python if you like.'],['send an email to my boss','I cannot send emails, but I can write one for you. Who is it for and what should it say?'],['set an alarm for 7 am','I cannot set alarms. The clock app on your phone can do that in a few seconds.'],['remind me to drink water','I cannot send reminders when this page is closed. Try a reminder in your phone clock or calendar app.'],['open my files','I cannot see your files. You can paste the text here and I will help with it.'],['calculate it','Which numbers should I calculate? Tell me the numbers and the operation.'],['plan my day','Plan:\n1. Pick your top task\n2. Do it first, for 45 minutes\n3. Take a short break\n4. Handle messages\n5. Review what is left'],['plan my study for tomorrow','Plan:\n1. Choose the hardest subject\n2. Study it for 45 minutes\n3. Rest for 10 minutes\n4. Practise questions\n5. Review your notes before bed'],['break down building a website','Steps:\n1. Decide the goal and the pages\n2. Write the content\n3. Build the layout in HTML\n4. Add style with CSS\n5. Test on your phone and laptop'],['what tools do you have','I have a calculator, a clock and a calendar. They run on your device.'],['how do you decide when to use a tool','If a question needs exact maths, I use the calculator. For the time I use the clock, and for the date I use the calendar. Otherwise I answer directly.'],['can you browse the internet','No. I run only on your device and cannot go online.'],['what is an agent','An agent is a program that decides on steps and uses tools to finish a task. I can use a calculator, a clock and a calendar.'],['what should i do first','Start with the smallest step you can finish in ten minutes. Momentum helps.'],['are you sure about that','I may be wrong, because I am a very small model. Please double check anything important.'],['help me decide','Tell me the options and what matters most to you. Then we can compare them one by one.'],['what is the plan','Tell me your goal and I will break it into small steps.']];
+function cap(s){return s.charAt(0).toUpperCase()+s.slice(1)}
+function style(q,k){if(k===0)return q;var c=cap(q);if(k===1)return c;return c+(/^(what|who|how|why|when|where|which|can|could|do|does|is|are|will|should)\b/.test(q)?'?':(k===2?'.':'!'))}
+function pairs(l,rep){var s='';for(var r=0;r<rep;r++)l.forEach(function(p,i){s+=Q(style(p[0],(r+i)%4),p[1])});return s}
+function tools(mul){var seed=11;function R(n){seed=(seed*1103515245+12345)&0x7fffffff;return (seed>>8)%n}var s='',i,n=mul||1;
+  for(i=0;i<110*n;i++){var a=R(900)+10,b=R(90)+10,k=R(6),e,r,q,w;
+    if(k===0){e=a+'+'+b;r=a+b;q=['what is '+a+' plus '+b,'add '+a+' and '+b,a+' + '+b,'calculate '+a+' + '+b,'what is the sum of '+a+' and '+b][R(5)];w=a+' plus '+b+' is '+r+'.'}
+    else if(k===1){if(a<b){var x=a;a=b;b=x}e=a+'-'+b;r=a-b;q=['what is '+a+' minus '+b,'subtract '+b+' from '+a,a+' - '+b,'calculate '+a+' - '+b,'what is '+a+' take away '+b][R(5)];w=a+' minus '+b+' is '+r+'.'}
+    else if(k===2){a=R(90)+10;b=R(11)+2;e=a+'*'+b;r=a*b;q=['what is '+a+' times '+b,'multiply '+a+' by '+b,a+' x '+b,'calculate '+a+' * '+b,'what is '+a+' multiplied by '+b][R(5)];w=a+' times '+b+' is '+r+'.'}
+    else if(k===3){b=R(11)+2;var c=R(40)+2;a=b*c;e=a+'/'+b;r=c;q=['what is '+a+' divided by '+b,'divide '+a+' by '+b,a+' / '+b,'calculate '+a+' / '+b,'what is '+a+' over '+b][R(5)];w=a+' divided by '+b+' is '+r+'.'}
+    else if(k===4){var pc=[10,20,25,50,5,15][R(6)];a=(R(40)+1)*20;e=a+'*'+pc+'/100';r=a*pc/100;q=['what is '+pc+' percent of '+a,pc+'% of '+a,'find '+pc+' percent of '+a][R(3)];w=pc+' percent of '+a+' is '+r+'.'}
+    else{var n1=R(9)+2,pr=R(40)+5;e=n1+'*'+pr;r=n1*pr;q='i bought '+n1+' pens at '+pr+' rupees each. what is the total';w='The total is '+r+' rupees.'}
+    s+=Q(style(q,R(4)),'<calc>'+e+'</calc><res>'+r+'</res>'+w)}
+  function T(){var h=R(12)+1,m=R(60),mm=(m<10?'0':'')+m,f=R(3),h2=R(24);if(f===0)return h+':'+mm+' '+(R(2)?'AM':'PM');if(f===1)return h+':'+mm+' '+(R(2)?'am':'pm');return (h2<10?'0':'')+h2+':'+mm}
+  function D(){var loc=['en-US','en-GB','en-IN','en-AU'][R(4)];return new Date(2026,R(12),R(28)+1).toLocaleDateString(loc,{weekday:'long',year:'numeric',month:'long',day:'numeric'})}
+  var tq=['what time is it','tell me the time','what is the time now','time please','do you know the time'],dq=['what is the date today','what day is it','what is todays date','which day is today','tell me the date'];
+  for(i=0;i<40*n;i++){var t1=T();s+=Q(style(tq[R(5)],R(4)),'<time>now</time><res>'+t1+'</res>It is '+t1+'.')}
+  for(i=0;i<40*n;i++){var d1=D();s+=Q(style(dq[R(5)],R(4)),'<date>today</date><res>'+d1+'</res>Today is '+d1+'.')}
+  for(i=0;i<12*n;i++){var d2=D(),t2=T();s+=Q(style(['what is the date and time','tell me the date and the time'][R(2)],R(4)),'<date>today</date><res>'+d2+'</res><time>now</time><res>'+t2+'</res>Today is '+d2+', and it is '+t2+'.')}
+  return s}
+var SAMPLES={simple:function(){return pairs(BASIC.slice(0,25),10)},detailed:function(){return pairs(BASIC,6)},coding:function(){return pairs(CODE,8)},flagship:function(){return pairs(BASIC,3)+pairs(WORK,3)+pairs(CODE,3)+pairs(AGENT,4)+tools(1)}};
+$$('#samples .row').forEach(function(r){function f(){put(sampleText(r.dataset.s));toast('Sample added')}r.onclick=f;r.onkeydown=function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();f()}}});
+
+var CTX=10240,TIER={basic:{d:64,L:4,H:4,f:160,W:96,B:4,info:'Just enough to hold a conversation'},work:{d:96,L:4,H:4,f:192,W:128,B:4,info:'More room for writing and planning'},agentic:{d:128,L:6,H:4,f:256,W:160,B:8,info:'The most capable, for tools and multi-step answers'}},
+  DEV={mobile:{p:.6,n:'Mobile'},tablet:{p:.65,n:'Tablet'},windows:{p:.75,n:'Windows'},linux:{p:.8,n:'Linux'}},
+  SKEYS=['simple','detailed','coding','flagship'],SNAME=['Simple','Detailed','Coding','Flagship'],SC={};
+function uiLvl(){return +$('input[name=reason]:checked').value}
+function sampleText(k,lv){lv=lv==null?uiLvl():lv;var ck=k+lv;if(!SC[ck]){rg=lv;SC[ck]=SAMPLES[k]();rg=0}return SC[ck]}
+function sampleId(){var vs=docEls().map(function(a){return a.value}).filter(function(v){return v.trim()});if(vs.length!==1)return 0;for(var i=0;i<4;i++)if(sampleText(SKEYS[i])===vs[0])return i+1;return 0}
+function reasonChanged(){var d=docEls(),vs=d.map(function(a){return a.value}).filter(function(v){return v.trim()}),k=-1,i;
+  if(vs.length===1)for(i=0;i<4;i++)if(sampleText(SKEYS[i],lastUi)===vs[0])k=i;
+  lastUi=uiLvl();$('#rsnInfo').textContent=['No thoughts: replies come straight away.','A short thought for maths, tools and code. Greetings and chat get none.','Steps worked out for maths, tools and code. Greetings and chat get none.','Steps plus a check for maths, tools and code. Greetings and chat get none.'][lastUi];
+  if(k>=0){d.forEach(function(a){if(a.value.trim())a.value=sampleText(SKEYS[k])});upd()}}
+function tierOf(c){return c.d<=64?'basic':c.d<=96?'work':'agentic'}
+function planCores(){var n=CORES||4,k=$('input[name=device]:checked').value,p=DEV[k].p;return{n:n,p:p,w:Math.max(1,Math.min(32,Math.round(n*p))),name:DEV[k].n}}
+function showCores(){var q=planCores();$('#coreUse').textContent=q.w+' of '+q.n;$('#coreInfo').textContent=(CORES?'This device has '+CORES+' cores. ':'Core count not available, assuming 4. ')+q.name+' uses '+Math.round(q.p*100)+'% of them.'}
+function showTier(){var k=$('input[name=preset]:checked').value,P=TIER[k],n=640*P.d+P.L*(4*P.d*P.d+3*P.d*P.f);$('#tierP').textContent=(n/1e6).toFixed(2)+'M';$('#tierInfo').textContent=P.info}
+$$('input[name=device]').forEach(function(r){r.onchange=showCores});$$('input[name=preset]').forEach(function(r){r.onchange=function(){showTier();var v={basic:1,work:2,agentic:3}[r.value],e=$('input[name=reason][value="'+v+'"]');if(e){e.checked=true;reasonChanged()}}});$$('input[name=reason]').forEach(function(r){r.onchange=reasonChanged});
+(function(){var ua=navigator.userAgent,d='windows';if(/iPad|Tablet/i.test(ua)||(/Android/i.test(ua)&&!/Mobile/i.test(ua)))d='tablet';else if(/iPhone|Android|Mobile/i.test(ua))d='mobile';else if(/Linux|X11|CrOS/i.test(ua))d='linux';var e=$('input[name=device][value='+d+']');if(e)e.checked=true})();
+showCores();showTier();
+function btnLabel(){return training?'Pause':(ts&&ts.paused)?'Continue':canResume()?'Continue training':'Start training'}
+function trainUI(){var b=$('#go');if(!b)return;b.querySelector('.lbl').textContent=btnLabel();$('#fresh').hidden=training||forceNew||!(canResume()||(ts&&ts.paused))}
+function tokenize(s){return LM.enc(tok,s)}
+var FEATURES=[
+ {id:'chat',has:function(){return chatMode},msg:'Chat mode is not in this model. It was trained on plain text, so it continues your text instead of answering, and the calculator, clock and calendar will not work.'},
+ {id:'app',has:function(){return !chatMode||knowsApp},msg:'This model was made before Mica\u2019s app info was added, so it may not know what Mica is or who made it. Continue training on a built-in sample, or train a new model.'},
+ {id:'reason',has:function(){return rAware||!chatMode},msg:'Reasoning is not in this model. It was made before reasoning was added, so replies will not show a Thinking block.'},
+ {id:'resume',has:function(){return trainedData>0},msg:function(){return trainedSteps>0?'Continue training will not work: your own text is not stored in the file.':'Continue training will not work: this file does not record what it was trained on.'}}];
+function compatList(){return FEATURES.filter(function(f){return !f.has()}).map(function(f){return typeof f.msg==='function'?f.msg():f.msg})}
+function renderCompat(){var l=compatList(),h='';
+  if(l.length&&model&&!training)h='<b>In this model, some things will not work</b><ul>'+l.map(function(x){return '<li>'+x.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</li>'}).join('')+'</ul>';
+  var m=$('#compatModel'),c=$('#compatChat');m.innerHTML=h;m.hidden=!h;
+  c.innerHTML=h?h+'<button type="button" id="compatOk">Got it</button>':'';c.hidden=!h||compatOff;
+  var ok=$('#compatOk');if(ok)ok.onclick=function(){compatOff=true;c.hidden=true}}
+function ready(){sess=null;hist=[];dirty=false;renderCompat();$('#mRsn').textContent=!chatMode?'Off (needs chat data)':rAware||training||ts?['Off','Basic','Medium','High'][mLvl]:'Not in this model';var c=model.c;$('#mP').textContent=(model.count()/1e6).toFixed(2)+'M';$('#mL').textContent=c.L+' layers · width '+c.d;$('#mT').textContent=c.T+' tokens';$('#mV').textContent='Subword · '+c.V+' tokens';$('#mTools').textContent=chatMode?'Calculator · Clock · Calendar':'Off (needs chat data)';$('#mData').textContent=trainedData>0?SNAME[trainedData-1]+' sample'+(trainedSteps?' · '+trainedSteps.toLocaleString()+' steps':''):(trainedSteps?'Your own text · cannot resume':'Not recorded');if(!training&&!(ts&&ts.paused))$('#stat').textContent=canResume()?'Ready to continue training on the '+SNAME[trainedData-1]+' sample.':'Loss appears here once training starts.';trainUI();$('#save').disabled=false;$('#chatEmpty').hidden=true;syncSend();sub();document.body.classList.toggle('onchat',tab==='chat')}
+
+/* training */
+var cv=$('#cv'),ctx=cv.getContext('2d'),loss=[];
+function draw(){var w=cv.clientWidth,h=cv.clientHeight,k=Math.min(devicePixelRatio||1,2);cv.width=w*k;cv.height=h*k;ctx.setTransform(k,0,0,k,0,0);
+  if(loss.length<2)return;var mx=Math.max.apply(null,loss),mn=Math.min.apply(null,loss),N=unl?Math.max(loss.length-1,1):(ts?ts.N:+$('#stp').value);
+  ctx.lineWidth=3;ctx.lineJoin='round';ctx.lineCap='round';ctx.strokeStyle=training?'#fff':'#C23B72';ctx.beginPath();
+  loss.forEach(function(v,i){var x=14+i/N*(w-28),y=16+(1-(v-mn)/(mx-mn+1e-6))*(h-32);i?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.stroke()}
+function stopUI(){training=false;showCores();if(wl){try{wl.release()}catch(e){}wl=null}$('#go').classList.remove('busy');$('#plot').classList.remove('live');upd();draw()}
+function wk(){
+  var m,seqs,masks,qs,B,TW,c;
+  onmessage=function(e){var d=e.data;
+    if(d.k==='init'){c=d.c;c.T=Math.min(c.T,d.TW*4+8);seqs=d.seqs;masks=d.masks;qs=d.qs;B=d.B;TW=d.TW;m=new LM.Model(c,true)}
+    else if(d.k==='run'){LM.unflat(m.p,c,d.w);var ls=NaN;try{ls=LM.batch(m,seqs,masks,qs,B,TW)}catch(x){}
+      var g=LM.flat(m.g,c);for(var k in m.g)m.g[k].fill(0);postMessage({k:'g',g:g,loss:ls},[g.buffer])}}
+}
+function killPool(){if(pool){pool.forEach(function(w){try{w.terminate()}catch(e){}});pool=null}}
+function bad(){killPool();ts=null;stopUI();model=null;$('#mst').textContent='Not trained';$('#chatEmpty').hidden=false;document.body.classList.remove('onchat');syncSend();toast('Training became unstable. Try fewer steps.',true)}
+window.addEventListener('beforeunload',function(e){if(training){e.preventDefault();e.returnValue=''}});
+function finish(done,step,paused){stopUI();$('#mst').textContent=paused?'Paused at step '+step:done?'Trained':'Stopped at step '+step;
+  var n=Math.min(20,loss.length);if(n){var z=0;for(var i=loss.length-n;i<loss.length;i++)z+=loss[i];lastLoss=z/n;$('#mQ').textContent=lastLoss.toFixed(2)+(lastLoss<1.5?' · good':lastLoss<3?' · still learning':' · needs more steps')}
+  if(done)toast('Training finished');if(paused)toast('Paused. Press Continue to carry on.');ready()}
+function progress(){if(!ts)return;var s=ts.step,N=ts.N,l=loss[loss.length-1]||0,dn=s-ts.s0,eta=dn?(performance.now()-ts.tStart)/dn*(N-s)/1000:0;
+  if(unl&&loss.length>3000){var hh=[];for(var q=0;q+1<loss.length;q+=2)hh.push((loss[q]+loss[q+1])/2);loss=hh}
+  $('#prog i').style.width=(isFinite(N)?s/N*100:100)+'%';
+  $('#stat').textContent=(isFinite(N)?'Step '+s+' of '+N+' · loss '+l.toFixed(2)+' · '+(eta>60?Math.round(eta/60)+' min':Math.round(eta)+' s')+' left':'Step '+s+' · loss '+l.toFixed(2)+' · runs until you press Pause')+' · '+curNW+(curNW===1?' core':' cores');draw()}
+function sched(s,N){return .006*(s<30?(s+1)/30:N===Infinity?.66:.1+.9*.5*(1+Math.cos(Math.PI*(s-30)/Math.max(1,N-30))))}
+function endRun(){var paused=pauseReq&&ts.step<ts.N;pauseReq=false;progress();
+  if(paused){ts.paused=true;finish(false,ts.step,true);return}
+  var done=ts.step>=ts.N,st=ts.step;killPool();ts=null;finish(done,st,false)}
+function tick(){if(!training||!ts)return;if(pauseReq||ts.step>=ts.N){endRun();return}ts.single?mainStep():poolStep()}
+function mainStep(){var t=performance.now(),o=ts.o;
+  do{o.lr=sched(ts.step,ts.N);var ls=LM.batch(model,ts.seqs,ts.masks,ts.qs,ts.P.B,ts.P.W);if(!isFinite(ls)){bad();return}
+    LM.step(model,o);ts.step++;trainedSteps++;loss.push(ls)}while(performance.now()-t<30&&ts.step<ts.N&&!pauseReq);
+  progress();setTimeout(tick,0)}
+function poolStep(){var w=LM.flat(model.p,ts.c);ts.got=0;ts.gs=null;ts.ls=0;
+  for(var i=0;i<pool.length;i++){var cp=w.slice();pool[i].postMessage({k:'run',w:cp},[cp.buffer])}}
+function onMsg(e){var d=e.data;if(d.k!=='g'||!ts||!pool)return;
+  if(!ts.gs)ts.gs=new Float32Array(d.g.length);var a=ts.gs,g=d.g,i;for(i=0;i<g.length;i++)a[i]+=g[i];ts.ls+=d.loss;ts.got++;
+  if(ts.got<pool.length)return;
+  var inv=1/pool.length,ls=ts.ls*inv;if(!isFinite(ls)){bad();return}
+  for(i=0;i<a.length;i++)a[i]*=inv;LM.unflat(model.g,ts.c,a);ts.o.lr=sched(ts.step,ts.N);LM.step(model,ts.o);
+  ts.step++;trainedSteps++;loss.push(ls);var now=performance.now();if(now-ts.last>150||ts.step>=ts.N||pauseReq){progress();ts.last=now}
+  setTimeout(tick,0)}
+function poolFailed(){if(!ts||!pool)return;killPool();ts.single=true;curNW=1;toast('Multi-core training is not available here. Using one core.',true);if(training)tick()}
+function startPool(){var wu,arr=[],i;
+  try{wu=URL.createObjectURL(new Blob([$('#eng').textContent+';('+wk.toString()+')()'],{type:'text/javascript'}));for(i=0;i<ts.nw;i++)arr.push(new Worker(wu));setTimeout(function(){URL.revokeObjectURL(wu)},5000)}
+  catch(x){arr.forEach(function(w){try{w.terminate()}catch(e){}});return false}
+  pool=arr;var sq=ts.seqs.map(function(a){return new Int16Array(a)});
+  arr.forEach(function(w){w.onerror=poolFailed;w.onmessage=onMsg;w.postMessage({k:'init',c:ts.c,seqs:sq,masks:ts.masks,qs:ts.qs,B:ts.Bw,TW:ts.P.W})});return true}
+function busyUI(){try{if(navigator.wakeLock)navigator.wakeLock.request('screen').then(function(l){wl=l}).catch(function(){})}catch(e){}$('#go').classList.add('busy');$('#plot').classList.add('live');trainUI()}
+function resumeRun(){training=true;pauseReq=false;ts.paused=false;ts.s0=ts.step;ts.tStart=performance.now();showCores();$('#coreUse').textContent=curNW+' of '+planCores().n;$('#mst').textContent='Training…';busyUI();tick()}
+function startSession(resume){
+  var r,text,P,dataId=0,q=planCores(),size=+$('#cs').value;unl=+$('#stp').value>=+$('#stp').max;var N=unl?Infinity:+$('#stp').value;$('#err').textContent='';
+  if(resume){text=sampleText(SKEYS[trainedData-1],mLvl);P=TIER[tierOf(model.c)];dataId=trainedData}
+  else{r=upd();if(r.chunks.length>2000){r.chunks=r.chunks.slice(0,2000);toast('Using the first 2000 chunks')}text=r.chunks.join('');P=TIER[$('input[name=preset]:checked').value];dataId=sampleId()}
+  training=true;pauseReq=false;$('#mst').textContent='Preparing…';$('#stat').textContent=resume?'Loading your data…':'Building the tokenizer…';$('#coreUse').textContent=q.w+' of '+q.n;busyUI();
+  setTimeout(function(){
+    var chunks=resume?chunk(text,size).chunks:r.chunks,tk2=resume?tok:LM.trainTok(text,640),c=resume?model.c:{V:tk2.vocab.length,d:P.d,L:P.L,H:P.H,f:P.f,T:CTX};
+    var seqs=chunks.map(function(x){return LM.enc(tk2,x)}).filter(function(a){return a.length>P.W+1});
+    if(!seqs.length){stopUI();$('#mst').textContent=model?'Ready':'Not trained';$('#err').textContent='Add more text or use a smaller chunk size.';return}
+    var qs=seqs.map(function(a){var o=[];for(var i=0;i<a.length-1;i++)if(a[i]===0)o.push(i);return o}),masks=seqs.map(LM.maskOf);
+    chatMode=/<\|a\|>/.test(text);rAware=true;if(!resume){knowsApp=false;mLvl=/<think>/.test(text)?uiLvl():0}if(dataId>0)knowsApp=true;tok=tk2;forceNew=false;
+    if(!resume){model=new LM.Model(c);trainedSteps=0;trainedData=dataId}
+    ts={c:c,P:P,seqs:seqs,masks:masks,qs:qs,o:{lr:.006,t:0,wd:.01},step:0,s0:0,N:N,nw:q.w,Bw:Math.max(1,Math.ceil(P.B/q.w)),paused:false,last:0,tStart:performance.now()};
+    loss=[];curNW=q.w;ready();$('#mst').textContent='Training…';
+    if(!startPool()){ts.single=true;curNW=1;toast('Multi-core training is not available here. Using one core.',true)}
+    ts.tStart=performance.now();tick()
+  },30)}
+$('#go').onclick=function(){
+  if(training){pauseReq=true;$('#mst').textContent='Pausing…';return}
+  if(ts&&ts.paused){resumeRun();return}
+  startSession(canResume())};
+$('#fresh').onclick=function(){killPool();ts=null;forceNew=true;$('#stat').textContent='Loss appears here once training starts.';upd();toast('The next training run starts a new model')};
+window.addEventListener('resize',draw);
+
+/* save / open */
+$('#save').onclick=function(){if(!model)return;var u=LM.pack(model,tok,(chatMode?1:0)|(knowsApp?2:0)|(mLvl<<2)|16,{data:trainedData,steps:trainedSteps}),a=document.createElement('a');a.href=URL.createObjectURL(new Blob([u],{type:'application/octet-stream'}));a.download='mica-model.mica';document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(a.href)},4000);toast(trainedData===0&&trainedSteps>0?'Saved. Your own text is not stored, so training cannot be resumed.':'Model saved')};
+$('#mfile').onchange=function(e){var f=e.target.files[0];e.target.value='';if(!f)return;if(f.size>2e7){toast('That file is too large for a Mica model',true);return}if(training){toast('Pause training first',true);return}if(gs)fin(gs);
+  f.arrayBuffer().then(function(b){try{var r=LM.unpack(new Uint8Array(b));killPool();ts=null;forceNew=false;model=r.m;tok=r.tk;chatMode=!!(r.flags&1);knowsApp=!!(r.flags&2);mLvl=(r.flags>>2)&3;rAware=!!(r.flags&16);compatOff=false;trainedData=r.data;trainedSteps=r.steps;lastLoss=null;$('#mQ').textContent='–';$('#mst').textContent='Loaded '+f.name;ready();upd();launchEl.classList.add('hide');setTab('chat');var cl=compatList();if(cl.length)toast(cl.length+(cl.length>1?' things':' thing')+' will not work in this older model',true)}catch(x){toast(x.message,true)}})};
+
+/* chat */
+var inp=$('#inp'),send=$('#send'),msgs=$('#msgs'),gs=null,sess=null,hist=[],dirty=false;
+function calc(s){if(s.length>40||!/^[0-9+\-*\/%().\s]+$/.test(s))return null;var i=0;function ws(){while(s[i]===' ')i++}
+  function num(){ws();if(s[i]==='('){i++;var v=ad();ws();if(s[i]!==')')throw 0;i++;return v}if(s[i]==='-'){i++;return -num()}var m=/^\d+(\.\d+)?/.exec(s.slice(i));if(!m)throw 0;i+=m[0].length;return +m[0]}
+  function mu(){var v=num();for(;;){ws();var c=s[i];if(c==='*'||c==='/'||c==='%'){i++;var r=num();v=c==='*'?v*r:c==='/'?v/r:v%r}else return v}}
+  function ad(){var v=mu();for(;;){ws();var c=s[i];if(c==='+'||c==='-'){i++;var r=mu();v=c==='+'?v+r:v-r}else return v}}
+  try{var v=ad();ws();if(i!==s.length||!isFinite(v))return null;return String(Math.round(v*1e6)/1e6)}catch(e){return null}}
+var TN={calc:'Calculator',time:'Clock',date:'Calendar'};
+function runTool(n,a){if(n==='calc')return calc(a);if(n==='time')return new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}).replace(/[\u202f\u00a0]/g,' ');return new Date().toLocaleDateString(undefined,{weekday:'long',year:'numeric',month:'long',day:'numeric'})}
+function ic(n){send.querySelector('use').setAttribute('href','#i-'+n)}
+function syncSend(){send.disabled=!model||training||(!inp.value.trim()&&!gs);ic(gs?(gs.paused?'play':'pause'):'send');send.setAttribute('aria-label',gs?(gs.paused?'Continue':'Pause'):'Send')}
+inp.oninput=function(){this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px';syncSend()};
+inp.onkeydown=function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();if(!gs)go()}};
+send.onclick=function(){
+  if(gs&&!gs.paused){gs.paused=true;generating=false;syncSend();return}
+  if(gs&&gs.paused){if(inp.value.trim()){fin(gs);go();return}gs.paused=false;generating=true;syncSend();nx();return}
+  go()};
+function add(c,t){while(msgs.children.length>120)msgs.firstChild.remove();var d=document.createElement('div'),x=document.createElement('span'),ch=document.createElement('div');
+  d.className='msg '+c;x.className='tx';x.textContent=t||'';ch.className='chips';d.appendChild(x);d.appendChild(ch);d.tx=x;d.ch=ch;msgs.appendChild(d);window.scrollTo(0,document.body.scrollHeight);return d}
+function fin(g){if(g.chat&&!g.ended){g.ended=true;LM.push(g.S,LM.enc(tok,'<|end|>\n'));
+    hist.push('<|q|>'+g.q+'<|a|>'+g.raw.replace(/<think>[\s\S]*?(<\/think>|$)/,'').replace(/<\|[a-z]*\|>/g,'')+'<|end|>\n');if(g.think)dirty=true}if(!g.shown.trim()){g.m.classList.remove('busy');g.m.tx.textContent=(g.used.length||g.think)?'':'I have not learned enough yet. Train me for more steps in the Train tab.'}gs=null;generating=false;syncSend()}
+function nx(){var g=gs;if(!g||g.paused)return;
+  var o=LM.next(model,g.S,g.temp,12,+$('#mem').value);
+  if(g.chat&&(o===2||o===0)){fin(g);return}
+  LM.push(g.S,[o]);g.ids.push(o);g.n++;g.raw=LM.dec(tok,g.ids);
+  var mt=/<(calc|time|date)>([^<]{0,40})<\/\1>(<res>)?$/.exec(g.raw);
+  if(mt&&g.used.length<3){var res=runTool(mt[1],mt[2]);if(res===null)res='error';g.used.push([mt[1],mt[2],res]);
+    LM.enc(tok,(mt[3]?'':'<res>')+res+'</res>').forEach(function(x){LM.push(g.S,[x]);g.ids.push(x)});g.raw=LM.dec(tok,g.ids);
+    g.m.ch.textContent='';g.used.forEach(function(u){var c=document.createElement('span');c.className='chip';c.textContent=TN[u[0]]+' · '+(u[0]==='calc'?u[1]+' = ':'')+u[2];g.m.ch.appendChild(c)})}
+  var show=g.raw.replace(/<(calc|time|date)>[^<]*<\/\1><res>[^<]*<\/res>/g,'').replace(/<(calc|time|date)>[^<]*(<\/\1>)?(<res>[^<]*(<\/res>)?)?$/,'').replace(/<\|[a-z]*\|>/g,'');
+  var cut=show.indexOf('\n'),done=g.n>=g.max;if(!g.chat&&cut>=0){show=show.slice(0,cut);done=true}
+  var tm=g.chat&&/<think>([\s\S]*?)(<\/think>|$)/.exec(show);
+  if(tm){var th=tm[1].replace(/<\/?t?h?i?n?k?$/,'').trim(),dn=/<\/think>/.test(show);show=show.replace(/<think>[\s\S]*?(<\/think>|$)/,'');
+    if(!g.th){g.th=document.createElement('details');g.th.className='think';g.th.innerHTML='<summary></summary><div class="tb"></div>';g.m.insertBefore(g.th,g.m.firstChild);g.m.classList.remove('busy');g.t0=g.t0||performance.now()}
+    g.think=th;g.th.lastChild.textContent=th;if(dn&&!g.tdone){g.tdone=true;g.ts=Math.max(1,Math.round((performance.now()-g.t0)/1000))}
+    g.th.firstChild.textContent=g.tdone?'Thought for '+g.ts+'s':'Thinking…';}
+  show=show.replace(/<(t(h(i(n(k)?)?)?)?)?$/,'');
+  g.shown=show;if(show.trim()){g.m.classList.remove('busy');g.m.tx.textContent=show.trim()}
+  window.scrollTo(0,document.body.scrollHeight);
+  if(done)fin(g);else setTimeout(nx,0)}
+function go(){var t=inp.value.trim();if(!t||gs||!model)return;if(training){toast('Wait for training to finish');return}
+  add('u',t);inp.value='';inp.style.height='auto';var m=add('a busy','…');
+  if(!sess)sess=LM.session(model,[]);else if(!chatMode)LM.reset(sess);
+  else if(dirty){var tot=0,k=hist.length;while(k>0&&tot+hist[k-1].length<3000)tot+=hist[--k].length;LM.reset(sess);if(k<hist.length)LM.push(sess,LM.enc(tok,hist.slice(k).join('')));dirty=false}
+  LM.push(sess,LM.enc(tok,chatMode?'<|q|>'+t+'<|a|>':t+'\n'));
+  gs={q:t,m:m,S:sess,ids:[],raw:'',shown:'',used:[],n:0,chat:chatMode,max:+$('#rl').value+[0,50,100,160][mLvl||0],temp:.2+$('#crt').value/100,paused:false};generating=true;syncSend();nx()}
+addDoc();setTab('chat');syncSend();showCores();
+})();
+</script><script>addEventListener('scroll',function(){document.body.classList.toggle('scrolled',scrollY>14)},{passive:true})</script>
+</body></html>
